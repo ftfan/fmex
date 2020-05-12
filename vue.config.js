@@ -18,7 +18,7 @@ const conf = {
 
   chainWebpack: (config) => {
     config.optimization.delete('splitChunks');
-    // config.plugins.delete('pwa');
+    config.plugins.delete('pwa');
     config.plugins.delete('workbox');
   },
   configureWebpack: (config) => {
@@ -36,42 +36,6 @@ const conf = {
         deleteOriginalAssets: false, // 删除原文件
       })
     );
-
-    const CreateChunks = (name, test, priority = 100) => {
-      return {
-        chunks: 'all',
-        test,
-        name,
-        minChunks: 1,
-        maxInitialRequests: 5,
-        minSize: 0,
-        priority,
-      };
-    };
-
-    // 构建打包设置
-    config.optimization = config.optimization || {};
-    config.optimization.splitChunks = config.optimization.splitChunks || {};
-    config.optimization.splitChunks.cacheGroups = {
-      common: CreateChunks('common', /\.js/, 60),
-      other: CreateChunks('nm', /node_modules(.*)\.js/, 150),
-      // deps
-      // 'bignumber.js': CreateChunks('deps', /node_modules(.*)bignumber\.js/, 200),
-      // 'axios': CreateChunks('deps', /node_modules(.*)axios/, 200),
-      // 'core-js': CreateChunks('deps', /node_modules(.*)core-js/, 200),
-      // vue
-      vue: CreateChunks('vue', /node_modules(.*)vue/, 300),
-      'element-ui': CreateChunks('element-ui', /node_modules(.*)element-ui/, 999),
-      styles: {
-        name: 'styles',
-        test: /\.(sa|sc|c)ss$/,
-        chunks: 'all',
-        enforce: true,
-      },
-      runtimeChunk: {
-        name: 'main',
-      },
-    };
   },
   devServer: {
     disableHostCheck: true,
@@ -82,15 +46,23 @@ const conf = {
     hotOnly: false,
     proxy: {
       '/fmex': {
-        target: 'https://api.fmex.pro',
-        pathRewrite(path, req) {
-          return path.replace('/fmex/', '/');
+        target: 'https://api.fmex.d73e969.com',
+        pathRewrite: { '^/fmex': '' },
+        onProxyReq(proxyReq, req, res) {
+          proxyReq.removeHeader('x-forwarded-port');
+          proxyReq.removeHeader('x-forwarded-host');
+          proxyReq.removeHeader('x-forwarded-proto');
+          proxyReq.removeHeader('x-forwarded-for');
         },
       },
       '/fcoin': {
-        target: 'https://api.fcoin.pro/',
-        pathRewrite(path, req) {
-          return path.replace('/fcoin/', '/');
+        target: 'https://api.fcoin.d73e969.com',
+        pathRewrite: { '^/fcoin': '' },
+        onProxyReq(proxyReq, req, res) {
+          proxyReq.removeHeader('x-forwarded-port');
+          proxyReq.removeHeader('x-forwarded-host');
+          proxyReq.removeHeader('x-forwarded-proto');
+          proxyReq.removeHeader('x-forwarded-for');
         },
       },
     },
