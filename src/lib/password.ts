@@ -13,21 +13,31 @@ export const PasswordEnc = (password: string) => {
 
 // 加密
 export const EncryptStrByPassword = (password: string, data: string) => {
-  const pwd = PasswordEnc(password);
-  const Data = CryptoJS.AES.encrypt(data, pwd).toString();
+  try {
+    const pwd = PasswordEnc(password);
+    const Data = CryptoJS.AES.encrypt(data, pwd).toString();
+    const encData = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(Data));
 
-  // 校验
-  const res = DecryptStrByPassword(password, Data);
-  if (res.Error()) return res;
-  if (res.Data !== data) return new CodeObj(Code.Error, null, '加密出现异常');
+    // 校验
+    const res = DecryptStrByPassword(password, encData);
+    if (res.Error()) return res;
+    if (res.Data !== data) return new CodeObj(Code.Error, null, '加密出现异常');
 
-  return new CodeObj(Code.Success, Data);
+    return new CodeObj(Code.Success, encData);
+  } catch (e) {
+    return new CodeObj(Code.Error, null, '加密异常:' + e);
+  }
 };
 
 // 解密
 export const DecryptStrByPassword = (password: string, result: string) => {
-  const pwd = PasswordEnc(password);
-  const bytes = CryptoJS.AES.decrypt(result, pwd);
-  const originalText = bytes.toString(CryptoJS.enc.Utf8);
-  return new CodeObj(Code.Success, originalText);
+  try {
+    const pwd = PasswordEnc(password);
+    const decData = CryptoJS.enc.Base64.parse(result).toString(CryptoJS.enc.Utf8);
+    const bytes = CryptoJS.AES.decrypt(decData, pwd);
+    const originalText = bytes.toString(CryptoJS.enc.Utf8);
+    return new CodeObj(Code.Success, originalText);
+  } catch (e) {
+    return new CodeObj(Code.Error, null, '加密异常:' + e);
+  }
 };
