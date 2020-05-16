@@ -1,4 +1,5 @@
 import '@/lib/CryptoJS.js';
+import '@/lib/zlib.min.js';
 import Vue from 'vue';
 import '@/assets/style/main.scss';
 import App from './App.vue';
@@ -10,7 +11,7 @@ import { FCoinApi } from '@/api/FCoin';
 
 // 状态管理
 import '@/data/User';
-import { EncryptStrByPassword } from './lib/password';
+import '@/data/Data';
 
 // Register the router hooks with their names
 Component.registerHooks([
@@ -36,12 +37,3 @@ const fmex = new FMexApi('111', '2222');
 const fcoin = new FCoinApi('111', '2222');
 fmex.api.get('/v2/public/server-time');
 fcoin.api.get('/v2/public/server-time');
-
-const pwd = EncryptStrByPassword('Password', 'PasswordCheckString');
-console.log(pwd);
-
-const key = EncryptStrByPassword('Password', 'Key');
-console.log(key);
-
-const sec = EncryptStrByPassword('Password', 'Secret');
-console.log(sec);

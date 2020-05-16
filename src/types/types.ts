@@ -1,4 +1,3 @@
-
 export enum BrocastType {
   hello = 'hello',
   ping = 'ping',
@@ -210,7 +209,7 @@ export interface DepthData {
   seq: number;
   ts: number;
   type: string;
-};
+}
 
 export enum LeveragedBalanceState {
   open = 'open',

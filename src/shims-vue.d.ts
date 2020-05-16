@@ -4,4 +4,4 @@ declare module '*.vue' {
 }
 
 declare var CryptoJS: any;
-declare var Base64: any;
+declare var Zlib: any;

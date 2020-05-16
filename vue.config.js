@@ -65,6 +65,16 @@ const conf = {
           proxyReq.removeHeader('x-forwarded-for');
         },
       },
+      '/okex': {
+        target: 'https://www.okex.me',
+        pathRewrite: { '^/okex': '' },
+        onProxyReq(proxyReq, req, res) {
+          proxyReq.removeHeader('x-forwarded-port');
+          proxyReq.removeHeader('x-forwarded-host');
+          proxyReq.removeHeader('x-forwarded-proto');
+          proxyReq.removeHeader('x-forwarded-for');
+        },
+      },
     },
   },
 };

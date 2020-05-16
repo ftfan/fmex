@@ -10,7 +10,7 @@ export const ApiSign = (config: AxiosRequestConfig, to: SignTo) => {
   const time = Date.now().toString();
   const data = [] as string[];
   const params = [] as string[];
-  const secret = [`${config.method!.toLocaleUpperCase()}${to.DomainReal}${config.url}`];
+  const secret = [`${(config.method || '').toLocaleUpperCase()}${to.DomainReal}${config.url}`];
 
   if (config.data) {
     for (const arg in config.data) data.push(`${arg}=${config.data[arg]}`);

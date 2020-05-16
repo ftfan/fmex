@@ -12,15 +12,19 @@
     "axios": "^0.19.2",
     "bignumber.js": "^9.0.0",
     "core-js": "^3.6.4",
+    "echarts": "^4.7.0",
     "element-ui": "^2.4.5",
+    "pako": "^1.0.11",
     "vue": "^2.6.11",
     "vue-class-component": "^7.2.3",
     "vue-property-decorator": "^8.4.1",
-    "vue-router": "^3.1.6"
+    "vue-router": "^3.1.6",
+    "wasm-flate": "^1.0.2-browser"
   },
   "devDependencies": {
     "@types/bignumber.js": "^5.0.0",
     "@types/chai": "^4.2.11",
+    "@types/echarts": "^4.6.0",
     "@types/mocha": "^5.2.4",
     "@typescript-eslint/eslint-plugin": "^2.26.0",
     "@typescript-eslint/parser": "^2.26.0",

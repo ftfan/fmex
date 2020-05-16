@@ -6,7 +6,7 @@
  * ("yyyy-MM-dd EEE hh:mm:ss") ==> 2009-03-10 星期二 08:09:04
  * ("yyyy-M-d h:m:s.S") ==> 2006-7-2 8:9:4.18
  */
-export const DateFormat = (time: number | Date, fmt: string = 'yyyy-MM-dd hh:mm:ss') => {
+export const DateFormat = (time: number | Date, fmt = 'yyyy-MM-dd hh:mm:ss') => {
   if (typeof time === 'number') {
     if (time < 9999999999) time *= 1000; // 秒级别的数字
     time = new Date(time);
