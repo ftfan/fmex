@@ -3,6 +3,13 @@
     <div>
       <el-button type="primary" @click="AddKeyDialog = true">添加秘钥</el-button>
       <el-button type="danger" @click="ResetAll">重置站点</el-button>
+      <el-tooltip class="item" effect="dark" content="非必要情况，希望不要修改该数据 ^_^ 感谢支持" placement="top">
+        <div style="display:inline-block;">
+          <el-link style="margin-left:8px;">BrokerID:</el-link>
+          <el-autocomplete size="mini" v-model="$UserStore.localState.BrokerID" :fetch-suggestions="querySearch" placeholder="请输入BrokerID"></el-autocomplete>
+        </div>
+      </el-tooltip>
+
       <el-dialog :title="$UserStore.localState.Password ? (form.origin ? '修改秘钥' : '添加秘钥') : '请先设置站点密码'" :visible.sync="AddKeyDialog" @close="DialogClear" :close-on-click-modal="false">
         <!-- 用户已经设置过密码 -->
         <el-form :model="form" label-width="100px" v-if="$UserStore.localState.Password">
@@ -44,6 +51,7 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import { EncryptStrByPassword, DecryptStrByPassword } from '../../lib/password';
 import { SecretKey } from '../../types/Secret';
+import { DeveloperBrokerID } from '../../config';
 
 @Component
 export default class HomeKey extends Vue {
@@ -58,6 +66,9 @@ export default class HomeKey extends Vue {
   };
   created() {
     this.$UserStore.clear;
+  }
+  querySearch(queryString: string, cb: any) {
+    cb([{ value: DeveloperBrokerID }]);
   }
   DialogClear() {
     this.form.Key = '';

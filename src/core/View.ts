@@ -4,7 +4,23 @@ import BigNumber from 'bignumber.js';
 
 export interface ViewOptions {
   Granularity: string;
+  Target: string[][];
 }
+
+export interface Target {
+  value: string;
+  children?: Target[];
+}
+export const Targets: Target[] = [
+  {
+    value: 'MA-移动平均线',
+    children: [{ value: 'MA-移动平均线3' }, { value: 'MA-移动平均线5' }, { value: 'MA-移动平均线15' }],
+  },
+  {
+    value: 'BOLL-布林带',
+    children: [{ value: 'BOLL-布林带3' }, { value: 'BOLL-布林带5' }, { value: 'BOLL-布林带15' }],
+  },
+];
 
 let close: any = null;
 
@@ -13,7 +29,7 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
   echart.setOption({
     backgroundColor: '#21202D',
     legend: {
-      data: [Options.Granularity, 'MA5', 'MA15', 'MA30', 'MA60'],
+      data: ['MA5', 'MA15', 'MA30', 'MA60'],
       inactiveColor: '#777',
       textStyle: {
         color: '#fff',
@@ -195,7 +211,7 @@ function getOption(rawData: string[][], Options: ViewOptions) {
         smooth: true,
         showSymbol: false,
         lineStyle: {
-          width: 1,
+          width: 2,
         },
       },
       {
@@ -205,7 +221,7 @@ function getOption(rawData: string[][], Options: ViewOptions) {
         smooth: true,
         showSymbol: false,
         lineStyle: {
-          width: 1,
+          width: 2,
         },
       },
       {
@@ -215,7 +231,7 @@ function getOption(rawData: string[][], Options: ViewOptions) {
         smooth: true,
         showSymbol: false,
         lineStyle: {
-          width: 1,
+          width: 3,
         },
       },
     ],

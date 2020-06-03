@@ -1,5 +1,4 @@
 import '@/lib/CryptoJS.js';
-import '@/lib/zlib.min.js';
 import Vue from 'vue';
 import '@/assets/style/main.scss';
 import App from './App.vue';

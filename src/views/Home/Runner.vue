@@ -1,25 +1,15 @@
 <template>
   <div class="HomeRunner">
     <div>
-      <el-button type="primary" @click="AddKeyDialog = true">添加秘钥</el-button>
-      <el-button type="danger" @click="ResetAll">重置站点</el-button>
-      <el-dialog :title="$UserStore.localState.Password ? (form.origin ? '修改秘钥' : '添加秘钥') : '请先设置站点密码'" :visible.sync="AddKeyDialog" @close="DialogClear" :close-on-click-modal="false">
-        <!-- 用户已经设置过密码 -->
-        <el-form :model="form" label-width="100px" v-if="$UserStore.localState.Password">
-          <el-form-item label="备注"><el-input placeholder="（选填）例如：FMex只读权限" v-model="form.Desc" autocomplete="off"></el-input></el-form-item>
-          <el-form-item label="Key"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Key" autocomplete="off"></el-input></el-form-item>
-          <el-form-item label="Secret"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Secret" autocomplete="off"></el-input></el-form-item>
-        </el-form>
-        <!-- 用户首次设置密码 -->
-        <el-form :model="form" label-width="100px" v-else>
-          <el-form-item label="密码"><el-input v-model="form.Password" autocomplete="off"></el-input></el-form-item>
-          <el-form-item label="确认输入"><el-input v-model="form.Password2" autocomplete="off"></el-input></el-form-item>
-          <el-form-item label="说明">
-            <el-link type="primary" disabled>该密码用于【秘钥加密】、【校验身份】<br />如果忘记密码，需要重置站点数据</el-link>
-          </el-form-item>
-        </el-form>
+      <el-button type="success" @click="CreateRunner = true">创建策略</el-button>
+      <el-button type="primary" @click="ImportRunner">导入策略</el-button>
+      <el-dialog title="创建策略" :visible.sync="CreateRunner" @close="DialogClear" :close-on-click-modal="false">
+        <div>
+          
+
+        </div>
         <div slot="footer" class="dialog-footer">
-          <el-button @click="AddKeyDialog = false">取 消</el-button>
+          <el-button @click="CreateRunner = false">取 消</el-button>
           <el-button type="primary" @click="AddKey">确 定</el-button>
         </div>
       </el-dialog>
@@ -28,9 +18,11 @@
     <div class="clearfix">
       <el-card class="box-card fl" v-for="data in $UserStore.localState.SecretKeys" :key="data.Key">
         <div slot="header" class="clearfix">
-          <el-tag size="mini">{{ data.Key }}</el-tag>
-          <el-button style="float: right; padding: 3px;margin-left:4px;" @click="DeleteKey(data)" type="warning">删除</el-button>
-          <el-button style="float: right; padding: 3px;margin-left:4px;" @click="ModifyKey(data)" type="success">修改</el-button>
+          <el-tag size="mini" style="max-width:160px;text-overflow: ellipsis;overflow: hidden;">{{ data.Key }}</el-tag>
+          <el-button style="float: right; padding: 3px;margin-left:2px;" @click="DeleteKey(data)" plain type="warning">删除</el-button>
+          <el-button style="float: right; padding: 3px;margin-left:2px;" @click="ModifyKey(data)" plain type="success">修改</el-button>
+          <el-button style="float: right; padding: 3px;margin-left:2px;" @click="ModifyKey(data)" plain type="primary">导出</el-button>
+          <el-button style="float: right; padding: 3px;margin-left:2px;" @click="ModifyKey(data)" plain type="success">运行</el-button>
         </div>
         <div>
           备注：<el-tag size="small" v-if="data.Desc">{{ data.Desc }}</el-tag>
@@ -47,7 +39,7 @@ import { SecretKey } from '../../types/Secret';
 
 @Component
 export default class HomeRunner extends Vue {
-  AddKeyDialog = false;
+  CreateRunner = false;
   form = {
     Secret: '',
     Key: '',
@@ -78,7 +70,7 @@ export default class HomeRunner extends Vue {
     this.form.Secret = sec.Data;
     this.form.Key = data.Key;
     this.form.Desc = data.Desc;
-    this.AddKeyDialog = true;
+    this.CreateRunner = true;
     this.form.origin = data;
   }
   async DeleteKey(data: SecretKey) {
@@ -128,11 +120,11 @@ export default class HomeRunner extends Vue {
       if (res.Error()) return this.$notify.warning(res.Msg);
       this.$message.success('添加成功');
     }
-    this.AddKeyDialog = false;
+    this.CreateRunner = false;
   }
 
   // 站点数据重置
-  async ResetAll() {
+  async ImportRunner() {
     const ans: any = await this.$prompt('！！！该操作无法撤销，请自行备份数据；输入：我确认重置', { inputPlaceholder: '请输入：我确认重置', closeOnClickModal: false });
     if (!ans) return;
     if (ans.value !== '我确认重置') return this.$notify.warning('输入错误');

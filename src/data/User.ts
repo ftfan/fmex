@@ -1,7 +1,7 @@
 import Data from '@/lib/data';
 import Vue from 'vue';
 import { EncryptStrByPassword, DecryptStrByPassword } from '@/lib/password';
-import { Salt } from '@/config';
+import { Salt, DeveloperBrokerID } from '@/config';
 import { CodeObj, Code } from '@/types/Api';
 import { SecretKey } from '@/types/Secret';
 
@@ -17,9 +17,11 @@ class Store extends Data {
     Password: '', // 用户密码校验。为空则表示用户还未设置密码
 
     SecretKeys: [] as SecretKey[], // 秘钥列表
+
+    BrokerID: DeveloperBrokerID,
   };
 
-  protected name = `User`;
+  protected name = `fmex:User`;
 
   constructor() {
     super();

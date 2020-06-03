@@ -1,10 +1,9 @@
 import Data from '@/lib/data';
 import Vue from 'vue';
-import { CodeObj, Code } from '@/types/Api';
-import { OkexApi, okexws } from '@/api/Okex';
+import { OkexApi } from '@/api/Okex';
 import { DateFormat } from '@/lib/time';
 import BigNumber from 'bignumber.js';
-import { ViewOptions } from '@/core/View';
+import { ViewOptions, Targets } from '@/core/View';
 
 const okex = new OkexApi('', '');
 
@@ -71,13 +70,19 @@ class Store extends Data {
   readonly sessionState = {};
 
   // 持久状态
-  readonly localState = {};
+  readonly localState = {
+    ViewOptions: {
+      Granularity: '1分钟',
+      Target: [[Targets[0].children ? Targets[0].children[0].value : '']],
+    } as ViewOptions,
+  };
 
-  protected name = `Data`;
+  protected name = `fmex:Data`;
 
   constructor() {
     super();
     this.initilization();
+    console.log(this);
   }
 }
 
