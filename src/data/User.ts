@@ -79,6 +79,7 @@ class Store extends Data {
       Key: data.Key,
       Secret: res.Data,
       Desc: data.Desc,
+      Type: data.Type,
     });
     return res;
   }

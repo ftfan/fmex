@@ -1,12 +1,12 @@
 import '@/lib/CryptoJS.js';
 import Vue from 'vue';
 import '@/assets/style/main.scss';
-import App from './App.vue';
-import router from './router';
+import App from '@/App.vue';
+import router from '@/router';
 import Component from 'vue-class-component';
-import './plugins/element';
-import { FMexApi } from '@/api/FMex';
-import { FCoinApi } from '@/api/FCoin';
+import '@/plugins/element';
+// import { FMexApi } from '@/api/FMex';
+// import { FCoinApi } from '@/api/FCoin';
 
 // 状态管理
 import '@/data/User';
@@ -32,7 +32,11 @@ new Vue({
   },
 }).$mount('#app');
 
-const fmex = new FMexApi('111', '2222');
-const fcoin = new FCoinApi('111', '2222');
-fmex.api.get('/v2/public/server-time');
-fcoin.api.get('/v2/public/server-time');
+// const fmex = new FMexApi('111', '2222');
+// const fcoin = new FCoinApi('111', '2222');
+// fmex.api.get('/v2/public/server-time');
+// fcoin.api.get('/v2/public/server-time');
+const { PublicClient } = require('@okfe/okex-node');
+// const { V3WebsocketClient } = require('@okfe/okex-node');
+const { AuthenticatedClient } = require('@okfe/okex-node');
+const pClient = PublicClient('/okex', 10000);

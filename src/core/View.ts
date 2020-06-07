@@ -1,10 +1,14 @@
 import echarts from 'echarts';
-import { DataSource } from '@/data/Data';
-import BigNumber from 'bignumber.js';
+import { DataSource, Candle } from '@/data/Data';
+import { TargetResults } from '@/lib/target';
+import { DateFormat } from '@/lib/time';
 
 export interface ViewOptions {
   Granularity: string;
-  Target: string[][];
+  Target: string[];
+  CandleNum: number;
+  Source: string;
+  DataHook?: (rawData: Candle[], Options: ViewOptions, opt: any) => any;
 }
 
 export interface Target {
@@ -14,11 +18,15 @@ export interface Target {
 export const Targets: Target[] = [
   {
     value: 'MA-移动平均线',
-    children: [{ value: 'MA-移动平均线3' }, { value: 'MA-移动平均线5' }, { value: 'MA-移动平均线15' }],
+    children: [{ value: 'MA5' }, { value: 'MA15' }, { value: 'MA20' }],
   },
   {
-    value: 'BOLL-布林带',
-    children: [{ value: 'BOLL-布林带3' }, { value: 'BOLL-布林带5' }, { value: 'BOLL-布林带15' }],
+    value: 'BOLL-布林线',
+    children: [{ value: 'BOLL10' }, { value: 'BOLL20' }, { value: 'BOLL30' }],
+  },
+  {
+    value: 'OBV-能量潮',
+    children: [{ value: 'OBV' }, { value: 'OBV*多空比例净额' }],
   },
 ];
 
@@ -29,7 +37,7 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
   echart.setOption({
     backgroundColor: '#21202D',
     legend: {
-      data: ['MA5', 'MA15', 'MA30', 'MA60'],
+      // data: ['MA5', 'MA15', 'MA30', 'MA60'],
       inactiveColor: '#777',
       textStyle: {
         color: '#fff',
@@ -51,16 +59,32 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
       type: 'category',
       axisLine: { lineStyle: { color: '#8392A5' } },
     },
-    yAxis: {
-      scale: true,
-      axisLine: { lineStyle: { color: '#8392A5' } },
-      splitLine: { show: false },
-    },
+    yAxis: [
+      {
+        scale: true,
+        axisLine: { lineStyle: { color: '#8392A5' } },
+        splitLine: { show: false },
+      },
+      {
+        scale: true,
+        axisLine: { lineStyle: { color: '#8392A5' } },
+        splitLine: { show: false },
+      },
+      {
+        scale: true,
+        axisLine: { lineStyle: { color: '#8392A5' } },
+        splitLine: { show: false },
+      },
+    ],
     grid: {
       bottom: 80,
     },
     dataZoom: [
       {
+        // xAxisIndex: 0,
+        // yAxisIndex: 0,
+        // filterMode: 'filter',
+        start: 80,
         textStyle: {
           color: '#8392A5',
         },
@@ -86,38 +110,27 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
         type: 'inside',
       },
     ],
-    animation: true,
+    animation: false,
   });
   getData(echart, daHandler, Options);
 };
 
 async function getData(echart: echarts.ECharts, daHandler: DataSource, Options: ViewOptions) {
   if (close) close();
-  close = daHandler.Api.GetCandles('BTC-USD-SWAP', Options, (dates) => echart.setOption(getOption(dates, Options)));
-}
-
-function calculateMA(dayCount: any, data: any) {
-  const result = [];
-  for (let i = 0, len = data.length; i < len; i++) {
-    if (i < dayCount) {
-      result.push('-');
-      continue;
-    }
-    let sum = new BigNumber(0);
-    for (let j = 0; j < dayCount; j++) {
-      sum = sum.plus(data[i - j][1]);
-    }
-    result.push(sum.div(dayCount).toFixed(2));
-  }
-  return result;
-}
-
-function getOption(rawData: string[][], Options: ViewOptions) {
-  const dates = rawData.map((item) => item[0]);
-  const data = rawData.map(function(item) {
-    return [+item[1], +item[2], +item[5], +item[6]];
+  echart.showLoading();
+  close = await daHandler.Api.GetCandles('BTC-USDT', Options, (dates) => {
+    echart.hideLoading();
+    echart.setOption(getOption(dates, Options));
   });
-  // const opt: echarts.EChartOption = {
+}
+
+function getOption(rawData: Candle[], Options: ViewOptions) {
+  const dates = rawData.map((item) => DateFormat(item.timestamp, 'yyyy-MM-dd hh:mm'));
+
+  const data = rawData.map(function(item) {
+    return [item.open, item.close, item.high, item.low];
+  });
+
   const opt: any = {
     xAxis: {
       data: dates,
@@ -134,36 +147,15 @@ function getOption(rawData: string[][], Options: ViewOptions) {
           borderColor0: '#FD1050',
         },
         markPoint: {
-          // label: {
-          //   normal: {
-          //     formatter: function(param: any) {
-          //       return param != null ? Math.round(param.value) : '';
-          //     },
-          //   },
-          // },
+          symbol: 'pin',
           data: [
             // {
             //   name: 'XX标点',
-            //   coord: ['2013/5/31', 2300],
-            //   value: 2300,
+            //   coord: ['2020-06-06 04:45', 9800],
+            //   value: 9800,
             //   itemStyle: {
             //     color: 'rgb(41,60,85)',
             //   },
-            // },
-            // {
-            //   name: 'highest value',
-            //   type: 'max',
-            //   valueDim: 'highest',
-            // },
-            // {
-            //   name: 'lowest value',
-            //   type: 'min',
-            //   valueDim: 'lowest',
-            // },
-            // {
-            //   name: 'average value on close',
-            //   type: 'average',
-            //   valueDim: 'close',
             // },
           ],
           tooltip: {
@@ -172,6 +164,10 @@ function getOption(rawData: string[][], Options: ViewOptions) {
             },
           },
         },
+        markArea: {
+          silent: true,
+          data: [],
+        },
         markLine: {
           silent: true, // 不响应鼠标
           symbol: ['none', 'none'],
@@ -179,62 +175,26 @@ function getOption(rawData: string[][], Options: ViewOptions) {
           data: [
             {
               name: '当前价格',
-              yAxis: rawData[rawData.length - 1][2],
+              yAxis: rawData.length ? rawData[rawData.length - 1].close : 0,
             },
-            {
-              name: 'min line on close',
-              type: 'min',
-              valueDim: 'lowest',
-            },
-            {
-              name: 'max line on close',
-              type: 'max',
-              valueDim: 'highest',
-            },
+            // {
+            //   name: 'min line on close',
+            //   type: 'min',
+            //   // yAxis: min.toString(),
+            //   valueDim: 'lowest',
+            // },
+            // {
+            //   name: 'max line on close',
+            //   type: 'max',
+            //   // yAxis: max.toString(),
+            //   valueDim: 'highest',
+            // },
           ],
-        },
-      },
-      {
-        name: 'MA5',
-        type: 'line',
-        data: calculateMA(5, data),
-        smooth: true,
-        showSymbol: false,
-        lineStyle: {
-          width: 1,
-        },
-      },
-      {
-        name: 'MA15',
-        type: 'line',
-        data: calculateMA(15, data),
-        smooth: true,
-        showSymbol: false,
-        lineStyle: {
-          width: 2,
-        },
-      },
-      {
-        name: 'MA30',
-        type: 'line',
-        data: calculateMA(30, data),
-        smooth: true,
-        showSymbol: false,
-        lineStyle: {
-          width: 2,
-        },
-      },
-      {
-        name: 'MA60',
-        type: 'line',
-        data: calculateMA(60, data),
-        smooth: true,
-        showSymbol: false,
-        lineStyle: {
-          width: 3,
         },
       },
     ],
   };
+  TargetResults(rawData, Options, opt);
+  if (Options.DataHook) Options.DataHook(rawData, Options, opt);
   return opt;
 }

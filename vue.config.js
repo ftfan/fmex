@@ -75,6 +75,16 @@ const conf = {
           proxyReq.removeHeader('x-forwarded-for');
         },
       },
+      '/binancezh': {
+        target: 'https://api.binancezh.com',
+        pathRewrite: { '^/binancezh': '' },
+        onProxyReq(proxyReq, req, res) {
+          proxyReq.removeHeader('x-forwarded-port');
+          proxyReq.removeHeader('x-forwarded-host');
+          proxyReq.removeHeader('x-forwarded-proto');
+          proxyReq.removeHeader('x-forwarded-for');
+        },
+      },
     },
   },
 };

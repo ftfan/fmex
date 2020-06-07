@@ -1,11 +1,11 @@
 import axios, { AxiosInstance } from 'axios';
 import { CodeObj, Code } from '@/types/Api';
 
-export class OkexApi {
+export class BinanceApi {
   api!: AxiosInstance;
   constructor(AccessKey: string, AccessSecret: string) {
     const _axios = (this.api = axios.create({
-      baseURL: '/okex',
+      baseURL: '/binancezh',
       timeout: 10000,
     }));
 
@@ -37,30 +37,3 @@ export class OkexApi {
     );
   }
 }
-
-// const ws = new WebSocket('wss://okexcomreal.bafang.com:8443/ws/v3');
-// export const okexws = new Promise<WebSocket>((resolve) => {
-//   ws.onopen = () => {
-//     console.log('ws open');
-//     ws.send(JSON.stringify({ op: 'subscribe', args: ['spot/ticker:ETH-USDT', 'spot/candle60s:ETH-USDT'] }));
-//     resolve(ws);
-//   };
-// });
-
-// const pako = require('pako');
-// ws.onmessage = (data) => {
-//   // const msg = arg.data;
-//   // const msg = window.zip.(arg.data);
-//   const reader = new FileReader();
-//   reader.onload = function(event) {
-//     let content = reader.result; //内容就在这里
-//     console.log(content);
-//     content = pako.inflate(content, { to: 'string' });
-//     console.log(content);
-//   };
-//   reader.readAsText(data.data);
-// };
-// ws.onerror = (errs) => {
-//   if (errs) console.error(errs);
-//   alert('无法连接到ws');
-// };

@@ -14,6 +14,11 @@
         <!-- 用户已经设置过密码 -->
         <el-form :model="form" label-width="100px" v-if="$UserStore.localState.Password">
           <el-form-item label="备注"><el-input placeholder="（选填）例如：FMex只读权限" v-model="form.Desc" autocomplete="off"></el-input></el-form-item>
+          <el-form-item label="交易所">
+            <el-select v-model="form.Type">
+              <el-option v-for="item in $DataStore.state.DataSource" :key="item.Name" :label="item.Name" :value="item.Name"></el-option>
+            </el-select>
+          </el-form-item>
           <el-form-item label="Key"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Key" autocomplete="off"></el-input></el-form-item>
           <el-form-item label="Secret"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Secret" autocomplete="off"></el-input></el-form-item>
         </el-form>
@@ -49,9 +54,9 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import { EncryptStrByPassword, DecryptStrByPassword } from '../../lib/password';
-import { SecretKey } from '../../types/Secret';
-import { DeveloperBrokerID } from '../../config';
+import { EncryptStrByPassword, DecryptStrByPassword } from '@/lib/password';
+import { SecretKey } from '@/types/Secret';
+import { DeveloperBrokerID } from '@/config';
 
 @Component
 export default class HomeKey extends Vue {
@@ -62,6 +67,7 @@ export default class HomeKey extends Vue {
     Desc: '',
     Password: '',
     Password2: '',
+    Type: 'fmex',
     origin: null as null | SecretKey,
   };
   created() {
@@ -114,6 +120,7 @@ export default class HomeKey extends Vue {
     }
     // 添加Key 流程
     const Desc = (this.form.Desc || '').trim();
+    const Type = this.form.Type;
     const Key = (this.form.Key || '').trim();
     const Secret = (this.form.Secret || '').trim();
     if (!Key) return this.$notify.warning('Key 不可为空');
@@ -130,12 +137,12 @@ export default class HomeKey extends Vue {
 
     // 修改流程
     if (this.form.origin) {
-      const res = this.$UserStore.AddKey({ Key, Secret, Desc }, pwd.Data, this.form.origin);
+      const res = this.$UserStore.AddKey({ Key, Secret, Desc, Type }, pwd.Data, this.form.origin);
       if (res.Error()) return this.$notify.warning(res.Msg);
       this.$message.success('修完成功');
     } else {
       // 添加流程
-      const res = this.$UserStore.AddKey({ Key, Secret, Desc }, pwd.Data);
+      const res = this.$UserStore.AddKey({ Key, Secret, Desc, Type }, pwd.Data);
       if (res.Error()) return this.$notify.warning(res.Msg);
       this.$message.success('添加成功');
     }
