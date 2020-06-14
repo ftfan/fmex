@@ -24,13 +24,17 @@
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import { RunnerConf } from '@/core/RunnerInstall';
+import urijs from 'urijs';
 
 @Component
 export default class HomeRunner extends Vue {
   RunnerConf = RunnerConf;
 
   Run(data: any) {
-    this.$router.push({ name: 'Run', query: { id: data.name } });
+    // this.$router.push({ name: 'Run', query: { id: data.name } });
+    const to = new urijs('/run');
+    to.setQuery({ id: data.name });
+    window.open(to.href());
   }
 
   // 站点数据重置

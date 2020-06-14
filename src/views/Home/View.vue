@@ -1,22 +1,8 @@
 <template>
   <div class="HomeView">
-    <el-select size="mini" v-model="ViewOptions.Source" placeholder="请选择" @change="ResetView">
-      <el-option v-for="item in DataSource" :key="item.Name" :label="item.Name" :value="item.Name"> </el-option>
-    </el-select>
-    <el-button @click="more" size="mini">加载更多</el-button>
-    <el-radio-group size="mini" v-model="ViewOptions.Granularity">
-      <el-radio-button label="1m"></el-radio-button>
-      <el-radio-button label="3m"></el-radio-button>
-      <el-radio-button label="5m"></el-radio-button>
-      <el-radio-button label="15m"></el-radio-button>
-      <el-radio-button label="30m"></el-radio-button>
-      <el-radio-button label="1h"></el-radio-button>
-      <el-radio-button label="2h"></el-radio-button>
-      <el-radio-button label="4h"></el-radio-button>
-      <el-radio-button label="6h"></el-radio-button>
-      <el-radio-button label="12h"></el-radio-button>
-      <el-radio-button label="1d"></el-radio-button>
-      <el-radio-button label="7d"></el-radio-button>
+    <!-- <el-button @click="more" size="mini">加载更多历史K线数据</el-button> -->
+    <el-radio-group size="mini" v-model="ViewOptions.Resolution">
+      <el-radio-button v-for="item in Resolutions" :key="item" :label="item"></el-radio-button>
     </el-radio-group>
     <el-cascader size="mini" :options="Targets" :props="cascaderprops" :show-all-levels="false" v-model="ViewOptions.Target" :collapse-tags="true"></el-cascader>
 
@@ -28,12 +14,26 @@
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 import echarts from 'echarts';
 import { ViewDrawLine, ViewOptions, Targets } from '@/core/View';
+import { FMex } from '@/api/FMex';
 
 @Component
 export default class HomeView extends Vue {
   cascadervalue = '';
   Targets = Targets;
   cascaderprops = { multiple: true, emitPath: false, label: 'value' };
+  Resolutions = [
+    FMex.Resolution.M1,
+    FMex.Resolution.M3,
+    FMex.Resolution.M5,
+    FMex.Resolution.M15,
+    FMex.Resolution.M30,
+    FMex.Resolution.H1,
+    FMex.Resolution.H4,
+    FMex.Resolution.H6,
+    FMex.Resolution.D1,
+    FMex.Resolution.W1,
+    FMex.Resolution.MN,
+  ];
   get ViewOptions() {
     return Vue.DataStore.localState.ViewOptions;
   }
@@ -45,8 +45,7 @@ export default class HomeView extends Vue {
     await this.$nextTick();
     this.ResetView();
   }
-  @Watch('ViewOptions.CandleNum')
-  @Watch('ViewOptions.Granularity')
+  @Watch('ViewOptions.Resolution')
   onChange() {
     this.ResetView();
   }
@@ -61,8 +60,7 @@ export default class HomeView extends Vue {
 
   ResetView() {
     const myChart = echarts.init(document.getElementById('HomeView') as HTMLDivElement);
-    const handler = Vue.DataStore.state.DataSource.filter((item) => item.Name === this.ViewOptions.Source)[0];
-    ViewDrawLine(myChart, handler, this.ViewOptions);
+    ViewDrawLine(myChart, this.ViewOptions);
   }
 }
 </script>

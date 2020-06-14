@@ -1,13 +1,48 @@
 <template>
   <div class="BollView">
-    <el-button @click="TestRun" type="primary">测试</el-button>
-    <el-button @click="GetMore">加载更多K线</el-button>
-    <el-tag>秘钥Key：{{ BOLL.localState.Key }}</el-tag>
-    <el-tag>参考K线单位：{{ BOLL.localState.Granularity }}</el-tag>
-    <el-tag>允许最多滞留订单数：{{ BOLL.localState.IngOrderNumMax }}</el-tag>
-    <el-tag>单次下单量：{{ BOLL.localState.OrderStepNum }}</el-tag>
-    <el-tag>最小下单间隔时间：{{ BOLL.localState.SameOrderTimeDiffMin }}分钟</el-tag>
-    <el-tag>下单方向：{{ BOLL.localState.OrderTypes.join(' 与 ') }}</el-tag>
+    <!-- <el-button @click="RunClear" type="primary">重新测试</el-button> -->
+    <el-button @click="GetMore" type="primary">查看更多K线(查看/测试用)</el-button>
+    <el-button @click="RealRun" type="primary">运行</el-button>
+    <el-tag v-if="BOLL.localState.Key">秘钥Key：{{ BOLL.localState.Key }}</el-tag>
+    <el-divider></el-divider>
+    <el-tag>参考K线单位：</el-tag>
+    <el-radio-group size="mini" v-model="BOLL.localState.Resolution">
+      <el-radio-button label="1m"></el-radio-button>
+      <el-radio-button label="3m"></el-radio-button>
+      <el-radio-button label="5m"></el-radio-button>
+      <el-radio-button label="15m"></el-radio-button>
+      <el-radio-button label="30m"></el-radio-button>
+      <el-radio-button label="1h"></el-radio-button>
+    </el-radio-group>
+    <el-divider></el-divider>
+    <!-- <el-input style="width:250px;margin-right:10px;" size="mini" v-model.number="BOLL.localState.DiffCancel">
+      <template slot="prepend">最多滞留：</template>
+      <template slot="append">单</template>
+    </el-input> -->
+    <el-input style="width:250px;margin-right:10px;" size="mini" v-model.number="BOLL.localState.IngOrderNumMax">
+      <template slot="prepend">最多滞留：</template>
+      <template slot="append">单</template>
+    </el-input>
+    <el-input style="width:250px;margin-right:10px;" size="mini" v-model.number="BOLL.localState.Win">
+      <template slot="prepend">止盈</template>
+      <template slot="append">/10000</template>
+    </el-input>
+    <el-input style="width:250px;margin-right:10px;" size="mini" v-model.number="BOLL.localState.Lose">
+      <template slot="prepend">止损</template>
+      <template slot="append">/10000</template>
+    </el-input>
+    <el-input style="width:250px;margin-right:10px;" size="mini" v-model.number="BOLL.localState.OrderStepNum">
+      <template slot="prepend">单次下单：</template>
+      <template slot="append">张</template>
+    </el-input>
+    <el-input style="width:250px;margin-right:10px;" size="mini" v-model.number="BOLL.localState.SameOrderTimeDiffMin">
+      <template slot="prepend">最小下单间隔：</template>
+      <template slot="append">分钟</template>
+    </el-input>
+    <el-checkbox-group style="display:inline-block;" v-model="BOLL.localState.OrderTypes">
+      <el-checkbox label="多">多</el-checkbox>
+      <el-checkbox label="空">空</el-checkbox>
+    </el-checkbox-group>
 
     <el-divider></el-divider>
     <el-tag>策略次数：{{ BOLL.localState.DataSay[0].Times + BOLL.localState.DataSay[1].Times }}</el-tag>
@@ -16,18 +51,33 @@
     <el-tag>滞留多单：{{ BOLL.state.ActiveOrders.lower.length }}</el-tag>
     <el-divider></el-divider>
     <div id="BollView" style="width:100%;height:600px;"></div>
+
+    <el-dialog :visible.sync="choosekey">
+      <div class="clearfix">
+        <el-card class="box-card fl" shadow="hover" @click.native="SubmitRun(data)" v-for="data in $UserStore.localState.SecretKeys" :key="data.Key">
+          <div slot="header" class="clearfix">
+            <el-tag size="mini">{{ data.Key }}</el-tag>
+          </div>
+          <div>
+            备注：<el-tag size="small" v-if="data.Desc">{{ data.Desc }}</el-tag>
+          </div>
+        </el-card>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator';
+import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 import echarts from 'echarts';
 import BOLL, { BollTypeText, BOLLRunnerOrder, BollType } from '.';
 import { ViewOptions, ViewDrawLine } from '@/core/View';
 import { Candle } from '@/data/Data';
 import { RunnerOrder } from '@/types/Runner';
 import { DateFormat } from '@/lib/time';
-import { sleep } from '../../lib/utils';
+import { sleep } from '@/lib/utils';
+import { SecretKey } from '../../types/Secret';
+import { Loading } from 'element-ui';
 
 const OrderColorConf = {
   [BollType.upper]: 'red',
@@ -50,18 +100,17 @@ const OrderStyle = (order: BOLLRunnerOrder) => {
 
 @Component
 export default class BollView extends Vue {
-  Testing = false;
-  TestOrderStep = 20;
+  choosekey = false;
   get BOLL() {
     return BOLL;
   }
   get ViewOptions(): ViewOptions {
     const key = this.$UserStore.localState.SecretKeys.filter((item) => item.Key === BOLL.localState.Key)[0];
     return {
-      Granularity: BOLL.localState.Granularity,
+      CoinSymbol: 'btcusd_spot',
+      Resolution: BOLL.localState.Resolution,
       Target: ['BOLL20'],
       CandleNum: 200,
-      Source: key ? key.Type : 'okex',
       DataHook: (rawData, Options, opt) => this.DataHook(rawData, Options, opt),
     };
   }
@@ -79,7 +128,7 @@ export default class BollView extends Vue {
     }
 
     const Draw = () => {
-      const orders = this.Testing ? BOLL.state.TestOrder : BOLL.localState.Orders;
+      const orders = BOLL.localState.Orders;
       // console.log(orders.length, orders);
       orders.forEach((order) => {
         opt.series[0].markPoint.data.push(OrderStyle(order));
@@ -101,45 +150,31 @@ export default class BollView extends Vue {
       });
     };
 
-    // 将订单画上。
-    if (this.Testing && this.TestOrderStep < rawData.length) {
-      const stepd = () => {
-        if (this.TestOrderStep >= rawData.length) return;
-        BOLL.TryOrder(rawData.slice(0, this.TestOrderStep), { upper, lower, mid }, this.Testing);
-        const raw = rawData[this.TestOrderStep - 1];
-        opt.series[0].markPoint.data.push({
-          name: '测试进度',
-          coord: [DateFormat(raw.timestamp, 'yyyy-MM-dd hh:mm'), raw.close],
-          value: '测试进度',
-          symbol: 'diamond',
-          symbolSize: 20,
-        });
-        this.TestOrderStep++;
-        Draw();
-      };
-      stepd();
-      await sleep(400);
-      stepd();
-    } else {
-      BOLL.TryOrder(rawData, { upper, lower, mid }, this.Testing);
-      Draw();
-    }
+    BOLL.TryOrder(rawData, { upper, lower, mid });
+    Draw();
   }
 
+  @Watch('BOLL.localState.Resolution')
+  @Watch('BOLL.localState.SameOrderTimeDiffMin')
+  @Watch('BOLL.localState.IngOrderNumMax')
+  @Watch('BOLL.localState.DiffCancel')
+  @Watch('BOLL.localState.OrderStepNum')
+  @Watch('BOLL.localState.OrderTypes', { deep: true })
+  OnDataChange() {
+    this.ResetView();
+    this.RunClear();
+  }
   async mounted() {
     await this.$nextTick();
-    this.TestRun();
+    this.RunClear();
     this.ResetView();
   }
   ResetView() {
     const myChart = echarts.init(document.getElementById('BollView') as HTMLDivElement);
-    const handler = Vue.DataStore.state.DataSource.filter((item) => item.Name === this.ViewOptions.Source)[0];
-    ViewDrawLine(myChart, handler, this.ViewOptions);
+    ViewDrawLine(myChart, this.ViewOptions);
   }
 
-  TestRun() {
-    this.Testing = true;
-    this.TestOrderStep = 20;
+  RunClear() {
     BOLL.localState.DataSay.forEach((item) => {
       item.Times = 0;
       item.Value = 0;
@@ -153,6 +188,22 @@ export default class BollView extends Vue {
     BOLL.state.TestOrder = [];
   }
 
+  async RealRun() {
+    this.choosekey = true;
+  }
+
+  async SubmitRun(data: SecretKey) {
+    const pwd = await this.$UserStore.PromptPassword();
+    const loading = Loading.service({ fullscreen: true });
+    const res = await this.$UserStore.Test(data, pwd.Data);
+    loading.close();
+    if (res.Error()) return this.$message.success(res.Msg);
+    BOLL.state.api = res.Data;
+    // if (!BOLL.state.api) return this.$message.error('SecretKey 校验错误');
+    this.RunClear();
+    this.choosekey = false;
+  }
+
   GetMore() {
     if (this.$DataStore.state.LoadMore) this.$DataStore.state.LoadMore();
   }
@@ -160,6 +211,10 @@ export default class BollView extends Vue {
 </script>
 
 <style scoped lang="scss">
-.BollView {
+.box-card {
+  cursor: pointer;
+  // &:hover{
+  //   border
+  // }
 }
 </style>

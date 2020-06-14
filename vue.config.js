@@ -46,7 +46,8 @@ const conf = {
     hotOnly: false,
     proxy: {
       '/fmex': {
-        target: 'https://api.fmex.d73e969.com',
+        // target: 'https://api.fmex.d73e969.com',
+        target: 'https://www.fcointest.net',
         pathRewrite: { '^/fmex': '' },
         onProxyReq(proxyReq, req, res) {
           proxyReq.removeHeader('x-forwarded-port');

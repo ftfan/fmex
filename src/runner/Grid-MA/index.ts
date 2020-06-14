@@ -1,11 +1,14 @@
 import Data from '@/lib/data';
 import { RunnerOrder } from '@/types/Runner';
 import { Candle } from '@/data/Data';
-import BigNumber from 'bignumber.js';
-import { sleep, clone } from '@/lib/utils';
-import { DateFormat } from '@/lib/time';
+import { sleep, clone, getTimeId } from '@/lib/utils';
+import { UserStore } from '@/data/User';
+import { client_oid_static } from '@/config';
+import { Notification } from 'element-ui';
+import { FMex } from '@/api/FMex';
 
 const feeTest = 5 / 10000; // 手续费。
+const timesssss: any = {};
 
 export enum BollType {
   upper = 'upper',
@@ -49,6 +52,7 @@ export interface BOLLRunnerOrder extends RunnerOrder {
 class Store extends Data {
   // 内存状态
   readonly state = {
+    api: null as any,
     TestOrder: [] as BOLLRunnerOrder[], // 测试订单列表
 
     LastRawData: {} as Candle,
@@ -66,11 +70,13 @@ class Store extends Data {
   readonly localState = {
     Orders: [] as BOLLRunnerOrder[], // 订单列表
 
-    Granularity: '5m', // 参考线
+    Resolution: FMex.Resolution.M5, // 参考线
     Key: '', // 使用的秘钥
     SameOrderTimeDiffMin: 5, // 相邻下单数据的最小间隔时间。分钟单位
     IngOrderNumMax: 10, // 最多滞留订单数
-    DiffCancel: 5, // 挂单与目前差值万分几，取消，重新下单
+    DiffCancel: 2, // 挂单与目前差值万分几，取消，重新下单
+    Win: 10, // 止盈
+    Lose: 10, // 止损
     OrderStepNum: 10, // 单次下单量
     OrderTypes: ['多', '空'], // 下单类型，只做多？只做空？还是都做。
 
@@ -94,7 +100,7 @@ class Store extends Data {
   };
 
   protected name = `imconfig:BOLL`;
-  protected desc = `布林带内部买卖,下线买入，上线卖出，一定盈利或者中线止盈。`;
+  protected desc = `布林带内部买卖,均线下做多，均线上做空，设置止盈止损`;
 
   constructor() {
     super();
@@ -117,149 +123,147 @@ class Store extends Data {
   }
 
   // 尝试下单
-  TryOrder(rawData: Candle[], boll: { upper: number[]; lower: number[]; mid: number[] }, test = false) {
-    const orders = test ? this.state.TestOrder : this.localState.Orders;
+  TryOrder(rawData: Candle[], boll: { upper: number[]; lower: number[]; mid: number[] }) {
+    const orders = this.localState.Orders;
 
     const i = rawData.length - 1;
     const upper = boll.upper[i];
-    // console.log(upper, i);
     if (isNaN(upper)) return;
     this.state.LastRawData = rawData[i];
     const lower = boll.lower[i];
-    const mid = boll.mid[i];
+    // const mid = boll.mid[i];
 
     const lastTime = this.state.LastRawData.timestamp - this.localState.SameOrderTimeDiffMin * 60000;
     const lastTime2 = this.state.LastRawData.timestamp - this.localState.SameOrderTimeDiffMin * 30000;
 
+    if (this.state.ActiveOrders.upper.length === 0) {
+      this.OrderInPrice(this.state.LastRawData.close, BollType.upper, this.state.ActiveOrders.upper);
+    }
+    if (this.state.ActiveOrders.lower.length === 0) {
+      this.OrderInPrice(this.state.LastRawData.close, BollType.lower, this.state.ActiveOrders.lower);
+    }
     // 在当前位置的上轨和下轨挂单买卖。
     if (this.localState.OrderTypes.indexOf('空') > -1) {
       if (this.state.ActiveOrders.upper.filter((item) => item.timestamp >= lastTime).length === 0) {
-        if (this.state.ActiveOrders.upper.length <= this.localState.IngOrderNumMax) {
+        if (this.state.ActiveOrders.upper.length < this.localState.IngOrderNumMax) {
           this.OrderInPrice(upper, BollType.upper, this.state.ActiveOrders.upper);
         }
       }
     }
+
     if (this.localState.OrderTypes.indexOf('多') > -1) {
       if (this.state.ActiveOrders.lower.filter((item) => item.timestamp > lastTime).length === 0) {
-        if (this.state.ActiveOrders.lower.length <= this.localState.IngOrderNumMax) {
+        if (this.state.ActiveOrders.lower.length < this.localState.IngOrderNumMax) {
           this.OrderInPrice(lower, BollType.lower, this.state.ActiveOrders.lower);
         }
       }
     }
 
-    // 取消订单，检查平仓订单
-    const upperEnd: BOLLRunnerOrder[] = [];
-    const lowerEnd: BOLLRunnerOrder[] = [];
-    this.state.ActiveOrders.upper.forEach((order) => {
-      // 已经完结的订单，去处理其平仓单
+    // 检查 需要 取消 的 订单
+    const cancelList: BOLLRunnerOrder[] = [];
+    this.state.ActiveOrders.upper.concat(this.state.ActiveOrders.lower).forEach(async (order) => {
+      const price = order.bollType === BollType.upper ? upper : lower;
+      const orderss = order.bollType === BollType.upper ? this.state.ActiveOrders.upper : this.state.ActiveOrders.lower;
       if (order.state === 4) return; // 撤单中
-      let size = new BigNumber(order.filled_qty);
-      let ended = OrderStatusEnd.indexOf(order.state) > -1; // 父级订单已经完结
-      if (order.state === 2) {
-        if (order.subOrders.length === 0) ended = false;
-        order.subOrders.forEach((subOrder) => {
-          if (ended && OrderStatusEnd.indexOf(subOrder.state) === -1) ended = false; // 有未完结的订单
-          // 撤单成功的订单，如果还在这里，说明有成交数量
-          if (subOrder.state === -1) {
-            size = size.minus(subOrder.filled_qty);
-            return;
-          }
-          size = size.minus(subOrder.size);
-          if (subOrder.state === 4) return; // 撤单中
-          if (subOrder.state === 2) return;
-          const diff = (Math.abs(subOrder.price - mid) / mid) * 10000;
-          // console.log(subOrder.state, diff);
-          if (subOrder.state === 0 && diff > this.localState.DiffCancel) this.OrderCancel(subOrder, order.subOrders);
-        });
-        // 还有未平仓的数量
-        if (size.toNumber() > 0) {
-          this.OrderInPrice(mid, BollType.midUpper, order.subOrders);
-        }
-        if (ended) {
-          upperEnd.push(order);
-        }
-        return;
-      }
-      const diff = (Math.abs(order.price - upper) / upper) * 10000;
-      if (order.state === 0 && diff > this.localState.DiffCancel) {
-        this.OrderCancel(order, this.state.ActiveOrders.upper);
-      } else if (order.state === 0 && order.timestamp <= lastTime2) {
-        this.OrderCancel(order, this.state.ActiveOrders.lower);
-      }
+      const ended = OrderStatusEnd.indexOf(order.state) > -1;
+      // 父级订单已经完结
       if (ended) {
-        upperEnd.push(order);
-      }
-    });
-    this.state.ActiveOrders.lower.forEach((order) => {
-      if (order.state === 4) return; // 撤单中
-      let size = new BigNumber(order.filled_qty);
-      let ended = OrderStatusEnd.indexOf(order.state) > -1; // 父级订单已经完结
-      // 已经完结的订单，去处理其平仓单
-      if (order.state === 2) {
-        if (order.subOrders.length === 0) ended = false;
-        order.subOrders.forEach((subOrder) => {
-          if (ended && OrderStatusEnd.indexOf(subOrder.state) === -1) ended = false; // 有未完结的订单
-          // 撤单成功的订单，如果还在这里，说明有成交数量
-          if (subOrder.state === -1) {
-            size = size.minus(subOrder.filled_qty);
-            return;
+        // 订单成交，但是还未下子订单的，这里下子订单
+        if (order.state === 2 && order.subOrders.length === 0) {
+          if (!this.state.api) return;
+          const win = parseInt((order.price * (10000 - this.localState.Win)) / 1000 + '', 10) / 10;
+          const lose = parseInt((order.price * (10000 - this.localState.Lose)) / 1000 + '', 10) / 10;
+          order.subOrders.push(
+            this.OrderAtPrice({
+              instrument_id: order.instrument_id,
+              type: order.bollType === BollType.upper ? 4 : 3,
+              order_type: 1,
+              size: order.size,
+              trigger_price: order.bollType === BollType.upper ? Math.min(this.state.LastRawData.close, win) : Math.max(this.state.LastRawData.close, win),
+              algo_type: 2, // 市场价
+            }),
+            this.OrderAtPrice({
+              instrument_id: order.instrument_id,
+              type: order.bollType === BollType.upper ? 4 : 3,
+              order_type: 1,
+              size: order.size,
+              trigger_price: order.bollType === BollType.upper ? Math.max(this.state.LastRawData.close, lose) : Math.min(this.state.LastRawData.close, lose),
+              algo_type: 2, // 市场价
+            })
+          );
+          return;
+        }
+        // 有子订单的，需要判断子订单完成，才算完成
+        if (order.subOrders.length > 0) {
+          const isAllEnd = order.subOrders.filter((sub) => sub.state === 2).length > 0;
+          if (isAllEnd) {
+            const cancelOrder = order.subOrders[0].state === 2 ? order.subOrders[1] : order.subOrders[0];
+            return cancelList.push(order);
           }
-          size = size.minus(subOrder.size);
-          if (subOrder.state === 2) return;
-          if (subOrder.state === 4) return; // 撤单中
-          const diff = (Math.abs(subOrder.price - mid) / mid) * 10000;
-          // console.log(subOrder.state, diff);
-          if (subOrder.state === 0 && diff > this.localState.DiffCancel) this.OrderCancel(subOrder, order.subOrders);
-        });
-        // 还有未平仓的数量
-        if (size.toNumber() > 0) {
-          this.OrderInPrice(mid, BollType.midLower, order.subOrders);
+          order.subOrders.forEach((item) => this.UpdateOrderInfoAtTime(item));
+          return;
         }
-        if (ended) {
-          lowerEnd.push(order);
-        }
-        return;
+        return cancelList.push(order);
       }
-      const diff = (Math.abs(order.price - lower) / lower) * 10000;
-      if (order.state === 0 && diff > this.localState.DiffCancel) {
-        this.OrderCancel(order, this.state.ActiveOrders.lower);
-      } else if (order.state === 0 && order.timestamp <= lastTime2) {
-        this.OrderCancel(order, this.state.ActiveOrders.lower);
-      }
-      if (ended) {
-        lowerEnd.push(order);
-      }
+      // const diff = (Math.abs(order.price - price) / price) * 10000;
+      // if (this.localState.DiffCancel && order.state === 0 && diff > this.localState.DiffCancel) {
+      //   this.OrderCancel(order, orderss);
+      // } else if (order.state === 0 && order.timestamp <= lastTime2) {
+      //   this.OrderCancel(order, orderss);
+      // }
     });
 
     // 将结束的订单，归档
-    upperEnd.concat(lowerEnd).forEach((order) => {
+    cancelList.forEach((order) => {
       const list = order.bollType === BollType.upper ? this.state.ActiveOrders.upper : this.state.ActiveOrders.lower;
       const index = list.indexOf(order);
       if (index === -1) return;
       list.splice(index, 1);
       if (order.filled_qty === 0) return; // 没有成交量的订单不做记录
-      // orders.push(order);
       this.OrderEndSave(order, orders);
     });
   }
 
   async OrderCancel(order: BOLLRunnerOrder, orders: BOLLRunnerOrder[]) {
     order.state = 4;
-    await sleep(20);
-    if (order.state !== 4) return;
-    order.state = -1;
+    const cancel = await this.state.api.swap().postCancelOrder(order.instrument_id, order.order_id);
+    if (cancel.error_code !== '0') {
+      Notification.error('撤单失败');
+      await sleep(1000);
+      this.OrderCancel(order, orders);
+      return;
+    }
+    const info = await this.state.api.swap().getOrder(order.instrument_id, order.order_id);
+    if (!info) debugger;
+    Object.assign(order, this.OrderInfoGet(info));
     if (order.filled_qty !== 0) return; // 有成交额的订单，不需要删除
     const index = orders.indexOf(order);
     if (index > -1) orders.splice(index, 1);
   }
 
+  async OrderCancelAt(order: BOLLRunnerOrder) {
+    // order.state = 4;
+    const cancel = await this.state.api.post('/api/futures/v3/cancel_algos', {
+      instrument_id: order.instrument_id,
+      order_type: 1,
+      algo_ids: [order.order_id],
+    });
+    if (cancel.error_code !== '0') {
+      Notification.error('撤单失败');
+      await sleep(1000);
+      this.OrderCancelAt(order);
+      return;
+    }
+    this.UpdateOrderInfoAt(order);
+  }
+
   async OrderInPrice(price: number, type: BollType, orders: BOLLRunnerOrder[], size = this.localState.OrderStepNum) {
-    const timeVal = this.state.LastRawData.timestamp; // 参考蜡烛图时间
+    const timeVal = getTimeId(this.state.LastRawData.timestamp); // 参考蜡烛图时间
     const order: BOLLRunnerOrder = {
       bollType: type,
       id: timeVal.toString(),
-      instrument_id: '', // 合约名称，如BTC-USD-SWAP
-      client_oid: '', // 由您设置的订单ID来识别您的订单
+      instrument_id: `${this.state.api ? this.state.api.IsTestEnv : ''}BTC-USD-SWAP`, // 合约名称，如BTC-USD-SWAP
+      client_oid: `${client_oid_static}${timeVal}`, // 由您设置的订单ID来识别您的订单
       size: size, // 委托数量
       timestamp: timeVal, // 创建时间
       filled_qty: 0, // 成交数量
@@ -278,83 +282,144 @@ class Store extends Data {
     // 这里先占位。
     orders.push(order);
     // 下单后修正order
-    await sleep(20); // 模拟下单
-    if (order.state !== 3) return; // 可能这里被撤单了。
-    order.state = 0;
-    const timer = setInterval(() => {
-      // 完结状态
-      if (OrderStatusEnd.indexOf(order.state) > -1) {
-        clearInterval(timer);
+    if (this.state.api) {
+      const res = await this.state.api.swap().postOrder({
+        instrument_id: order.instrument_id,
+        client_oid: order.client_oid,
+        size: order.size,
+        price: order.price,
+        type: order.type,
+        order_type: order.order_type,
+      });
+      // console.log(res);
+      if (!res.order_id) {
+        Notification.error('下单失败');
+        order.state = -2;
+        this.OrderEndSave(order, orders);
         return;
       }
-      this.UpdateOrderInfo(order, orders);
-    }, 200);
+      order.order_id = res.order_id;
+      await this.UpdateOrderInfo(order);
+    }
+
+    return new Promise(async (resolve) => {
+      // 完结状态
+      while (OrderStatusEnd.indexOf(order.state) === -1 && this.state.api) {
+        await this.UpdateOrderInfo(order);
+        await sleep(1000);
+      }
+      return resolve(order);
+    });
+  }
+
+  OrderAtPrice(params: any) {
+    const timeVal = getTimeId(this.state.LastRawData.timestamp); // 参考蜡烛图时间
+    const order: BOLLRunnerOrder = {
+      bollType: params.type === 4 ? BollType.midUpper : BollType.midLower,
+      id: timeVal.toString(),
+      instrument_id: params.instrument_id,
+      client_oid: `${client_oid_static}${timeVal}`, // 由您设置的订单ID来识别您的订单
+      size: params.size, // 委托数量
+      timestamp: timeVal, // 创建时间
+      filled_qty: 0, // 成交数量
+      fee: 0, // 手续费
+      order_id: '', // 订单id
+      price: params.trigger_price, // 委托价格
+      price_avg: 0, // 成交均价
+      type: params.type, // 1:开多 2:开空 3:平多 4:平空
+      contract_val: 0, // 合约面值
+      order_type: 1, // 0：普通委托 1：只做Maker（Post only） 2：全部成交或立即取消（FOK） 3：立即成交并取消剩余（IOC） 4：市价委托
+      state: 3, // -2:失败 -1:撤单成功 0:等待成交 1:部分成交 2:完全成交 3:下单中 4:撤单中
+      trigger_price: 0, // 强平的真实触发价格，仅强平单会返回此字段
+      leverage: 0, // 杠杆倍数
+      subOrders: [],
+    };
+    this.state.api.post('/api/swap/v3/order_algo', params).then(async (sub: any) => {
+      if (sub.code !== 0) debugger; // 失败
+      order.order_id = sub.data.algo_id;
+      await this.UpdateOrderInfoAt(order);
+      order.subOrders.push(sub);
+    });
+    return order;
+  }
+
+  OrderInfoGet(data: any) {
+    data.contract_val = parseFloat(data.contract_val); // : "100"
+    data.fee = parseFloat(data.fee); // : "0.000000"
+    data.filled_qty = parseFloat(data.filled_qty); // : "0"
+    data.leverage = parseFloat(data.leverage); // : "10.00"
+    data.order_type = parseFloat(data.order_type); // : "1"
+    data.price = parseFloat(data.price); // : "9634.6"
+    data.price_avg = parseFloat(data.price_avg); // : "0.0"
+    data.size = parseFloat(data.size); // : "5"
+    data.state = parseFloat(data.state); // : "0"
+    data.status = parseFloat(data.status); // : "0"
+    data.timestamp = new Date(data.timestamp).getTime(); // : "2020-06-07T11:11:42.903Z"
+    data.trigger_price = parseFloat(data.trigger_price); // : null
+    data.type = parseFloat(data.type); // : "2"
+    return data;
+  }
+
+  async UpdateOrderInfoAtTime(order: BOLLRunnerOrder) {
+    const time = timesssss[order.order_id] || 0;
+    const now = Date.now();
+    if (now - time > 2000) {
+      timesssss[order.order_id] = now;
+      return this.UpdateOrderInfoAt(order);
+    }
+    return;
+  }
+  async UpdateOrderInfoAt(order: BOLLRunnerOrder) {
+    if (!this.state.api) return;
+    const info = await this.state.api.get(`/api/swap/v3/order_algo/${order.instrument_id}`, {
+      order_type: 1,
+      algo_id: order.order_id,
+    });
+    if (!info) debugger;
+    // Object.assign(order, { info.orderStrategyVOS));
+    if (info.orderStrategyVOS.status === '2') order.state = 2;
   }
 
   // 获取订单的最新数据
-  async UpdateOrderInfo(order: BOLLRunnerOrder, orders: BOLLRunnerOrder[]) {
-    const Success = () => {
-      order.state = 2;
-      order.filled_qty = order.size; // 完全成交
-      order.price_avg = order.price;
-      order.fee = order.size * 0.0005;
-    };
-    // const Delete = () => {
-    //   const index = orders.indexOf(order);
-    //   if (index > -1) orders.splice(index, 1);
-    // };
-    await sleep(Math.random() * 20);
-    const raw = this.state.LastRawData;
-
-    // 处于可能被成交的状态
-    if ([0, 1, 3, 4].indexOf(order.state) > -1) {
-      // 买入，做多。
-      if (order.type === 1 || order.type === 4) {
-        if (order.price > raw.close) {
-          Success();
-        } else if (order.timestamp <= raw.timestamp && order.price > raw.low) {
-          Success();
-        }
-      }
-      if (order.type === 2 || order.type === 3) {
-        if (order.price < raw.close) {
-          Success();
-        } else if (order.timestamp <= raw.timestamp && order.price < raw.high) {
-          Success();
-        }
-      }
-    }
+  async UpdateOrderInfo(order: BOLLRunnerOrder) {
+    if (!this.state.api) return;
+    const info = await this.state.api.swap().getOrder(order.instrument_id, order.order_id);
+    if (!info) debugger;
+    Object.assign(order, this.OrderInfoGet(info));
   }
 
+  // 归档订单到历史记录，
   async OrderEndSave(order: BOLLRunnerOrder, orders: BOLLRunnerOrder[]) {
     orders.push(order);
     const handler = order.bollType === BollType.upper ? this.localState.DataSay[0] : this.localState.DataSay[1];
     handler.Times++;
-    // 计算买入均价
-    let sum = 0;
-    order.subOrders.forEach((item) => {
-      sum += item.price * item.filled_qty;
-    });
-    const price = sum / order.size;
+
     const face = 100;
+    const win = order.subOrders[0];
+    const lose = order.subOrders[1];
     if (order.bollType === BollType.upper) {
-      const win = (order.price - price) * ((order.size * face) / price);
-      const fees = (order.size / order.price + order.size / price) * feeTest * face;
-      const value = win - fees;
-      if (order.price > price) {
+      if (win.state === 2) {
         handler.WinTimes++;
-        handler.WinValue += value;
+        if (lose.state === 2) debugger;
       }
-      handler.Value += value;
+
+      // const win = (order.price - price) * ((order.size * face) / price);
+      // const fees = (order.size / order.price + order.size / price) * feeTest * face;
+      // const value = win - fees;
+      // if (order.price > price) {
+      //   handler.WinTimes++;
+      //   handler.WinValue += value;
+      // }
+      // handler.Value += value;
     } else {
-      const win = (price - order.price) * ((order.size * face) / price);
-      const fees = (order.size / order.price + order.size / price) * feeTest * face;
-      const value = win - fees;
-      if (order.price < price) {
-        handler.WinTimes++;
-        handler.WinValue += value;
-      }
-      handler.Value += value;
+      // const win = (price - order.price) * ((order.size * face) / price);
+      // const fees = (order.size / order.price + order.size / price) * feeTest * face;
+      // const value = win - fees;
+      // if (order.price < price) {
+      //   handler.WinTimes++;
+      //   handler.WinValue += value;
+      // }
+      // handler.Value += value;
     }
     handler.LastTime = this.state.LastRawData.timestamp;
     this.localState.DataSays.push(clone(this.localState.DataSay));

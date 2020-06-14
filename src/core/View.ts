@@ -1,13 +1,14 @@
 import echarts from 'echarts';
-import { DataSource, Candle } from '@/data/Data';
+import { Candle, DataStore } from '@/data/Data';
 import { TargetResults } from '@/lib/target';
 import { DateFormat } from '@/lib/time';
+import { FMex } from '@/api/FMex';
 
 export interface ViewOptions {
-  Granularity: string;
+  Resolution: FMex.Resolution;
+  CoinSymbol: FMex.CoinSymbol;
   Target: string[];
   CandleNum: number;
-  Source: string;
   DataHook?: (rawData: Candle[], Options: ViewOptions, opt: any) => any;
 }
 
@@ -32,7 +33,7 @@ export const Targets: Target[] = [
 
 let close: any = null;
 
-export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Options: ViewOptions) => {
+export const ViewDrawLine = (echart: echarts.ECharts, Options: ViewOptions) => {
   echart.clear();
   echart.setOption({
     backgroundColor: '#21202D',
@@ -117,13 +118,13 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
     ],
     animation: false,
   });
-  getData(echart, daHandler, Options);
+  getData(echart, Options);
 };
 
-async function getData(echart: echarts.ECharts, daHandler: DataSource, Options: ViewOptions) {
+async function getData(echart: echarts.ECharts, Options: ViewOptions) {
   if (close) close();
   echart.showLoading();
-  close = await daHandler.Api.GetCandles('BTC-USDT', Options, (dates) => {
+  close = await DataStore.state.DataSource.GetCandles(Options, (dates: any) => {
     echart.hideLoading();
     echart.setOption(getOption(dates, Options));
   });
@@ -143,7 +144,7 @@ function getOption(rawData: Candle[], Options: ViewOptions) {
     series: [
       {
         type: 'k',
-        name: Options.Granularity,
+        name: Options.Resolution,
         data: data,
         itemStyle: {
           color: '#0CF49B',

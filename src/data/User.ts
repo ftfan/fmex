@@ -1,13 +1,16 @@
 import Data from '@/lib/data';
 import Vue from 'vue';
 import { EncryptStrByPassword, DecryptStrByPassword } from '@/lib/password';
-import { Salt, DeveloperBrokerID } from '@/config';
+import { Salt, DeveloperBrokerID, SiteName } from '@/config';
 import { CodeObj, Code } from '@/types/Api';
 import { SecretKey } from '@/types/Secret';
+import { FMex } from '@/api/FMex';
 
 class Store extends Data {
   // 内存状态
-  readonly state = {};
+  readonly state = {
+    api: {} as any,
+  };
 
   // session
   readonly sessionState = {};
@@ -21,7 +24,7 @@ class Store extends Data {
     BrokerID: DeveloperBrokerID,
   };
 
-  protected name = `fmex:User`;
+  protected name = `${SiteName}:User`;
 
   constructor() {
     super();
@@ -73,13 +76,14 @@ class Store extends Data {
       origin.Key = data.Key;
       origin.Secret = res.Data;
       origin.Desc = data.Desc;
+      origin.Pwd = data.Pwd;
       return res;
     }
     this.localState.SecretKeys.push({
       Key: data.Key,
       Secret: res.Data,
       Desc: data.Desc,
-      Type: data.Type,
+      Pwd: data.Pwd,
     });
     return res;
   }
@@ -92,6 +96,20 @@ class Store extends Data {
     const index = this.localState.SecretKeys.indexOf(has);
     this.localState.SecretKeys.splice(index, 1);
     return new CodeObj(Code.Success);
+  }
+
+  async Test(sk: SecretKey, pwd: string) {
+    const res = this.CheckPassword(pwd);
+    if (res.Error()) return res;
+    const sec = DecryptStrByPassword(pwd, sk.Secret);
+    if (sec.Error()) return sec;
+
+    const test = sk.Desc.match('test');
+    const fmex = new FMex.Api(sk.Key, sec.Data);
+
+    const data = await fmex.FetchBalance();
+    if (data.Error()) return data;
+    return new CodeObj(Code.Success, fmex);
   }
 }
 

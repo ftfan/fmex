@@ -6,11 +6,20 @@ export const sleep = (time: number) => {
 
 export const IdCreate = () => {
   return (
-    Date.now().toString(36) +
+    getTimeId().toString(36) +
     Math.random()
       .toString(36)
       .replace('0.', '')
+      .toLocaleLowerCase()
   );
+};
+
+// 保证内存内，该数值是唯一ID
+const timeIds: any = {};
+export const getTimeId = (time = Date.now()): number => {
+  if (timeIds[time]) return getTimeId(time + 1);
+  timeIds[time] = true;
+  return time;
 };
 
 export function clone<T>(data: T) {
