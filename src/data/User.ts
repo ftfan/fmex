@@ -1,13 +1,29 @@
 import Data from '@/lib/data';
 import Vue from 'vue';
 import { EncryptStrByPassword, DecryptStrByPassword } from '@/lib/password';
-import { Salt, DeveloperBrokerID } from '@/config';
+import { Salt, DeveloperBrokerID, SiteName } from '@/config';
 import { CodeObj, Code } from '@/types/Api';
 import { SecretKey } from '@/types/Secret';
+import { AuthenticatedClient } from '@/api/okex';
+import Axios, { AxiosRequestConfig } from 'axios';
+
+const testAxiosConf: AxiosRequestConfig = {
+  headers: {
+    'content-type': 'application/json',
+    'x-simulated-trading': 1,
+  },
+};
+const AxiosConf: AxiosRequestConfig = {
+  headers: {
+    'content-type': 'application/json',
+  },
+};
 
 class Store extends Data {
   // 内存状态
-  readonly state = {};
+  readonly state = {
+    api: {} as any,
+  };
 
   // session
   readonly sessionState = {};
@@ -21,7 +37,7 @@ class Store extends Data {
     BrokerID: DeveloperBrokerID,
   };
 
-  protected name = `fmex:User`;
+  protected name = `${SiteName}:User`;
 
   constructor() {
     super();
@@ -73,13 +89,14 @@ class Store extends Data {
       origin.Key = data.Key;
       origin.Secret = res.Data;
       origin.Desc = data.Desc;
+      origin.Pwd = data.Pwd;
       return res;
     }
     this.localState.SecretKeys.push({
       Key: data.Key,
       Secret: res.Data,
       Desc: data.Desc,
-      Type: data.Type,
+      Pwd: data.Pwd,
     });
     return res;
   }
@@ -92,6 +109,24 @@ class Store extends Data {
     const index = this.localState.SecretKeys.indexOf(has);
     this.localState.SecretKeys.splice(index, 1);
     return new CodeObj(Code.Success);
+  }
+
+  async Test(sk: SecretKey, pwd: string) {
+    const res = this.CheckPassword(pwd);
+    if (res.Error()) return res;
+    const sec = DecryptStrByPassword(pwd, sk.Secret);
+    if (sec.Error()) return sec;
+
+    const test = sk.Desc.match('test');
+    const okex = AuthenticatedClient(sk.Key, sec.Data, sk.Pwd, '/okex', 10000, test ? testAxiosConf : AxiosConf);
+
+    okex.IsTestEnv = test ? 'MN' : '';
+    const data = await okex
+      .spot()
+      .getAccounts()
+      .catch(() => Promise.resolve(false));
+    if (data === false) return new CodeObj(Code.Error, null, '接口请求失败');
+    return new CodeObj(Code.Success, okex);
   }
 }
 

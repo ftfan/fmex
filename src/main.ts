@@ -36,7 +36,3 @@ new Vue({
 // const fcoin = new FCoinApi('111', '2222');
 // fmex.api.get('/v2/public/server-time');
 // fcoin.api.get('/v2/public/server-time');
-const { PublicClient } = require('@okfe/okex-node');
-// const { V3WebsocketClient } = require('@okfe/okex-node');
-const { AuthenticatedClient } = require('@okfe/okex-node');
-const pClient = PublicClient('/okex', 10000);

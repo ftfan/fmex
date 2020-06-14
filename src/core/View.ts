@@ -1,5 +1,5 @@
 import echarts from 'echarts';
-import { DataSource, Candle } from '@/data/Data';
+import { DataSource, Candle, DataStore } from '@/data/Data';
 import { TargetResults } from '@/lib/target';
 import { DateFormat } from '@/lib/time';
 
@@ -7,7 +7,6 @@ export interface ViewOptions {
   Granularity: string;
   Target: string[];
   CandleNum: number;
-  Source: string;
   DataHook?: (rawData: Candle[], Options: ViewOptions, opt: any) => any;
 }
 
@@ -32,7 +31,7 @@ export const Targets: Target[] = [
 
 let close: any = null;
 
-export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Options: ViewOptions) => {
+export const ViewDrawLine = (echart: echarts.ECharts, Options: ViewOptions) => {
   echart.clear();
   echart.setOption({
     backgroundColor: '#21202D',
@@ -63,17 +62,22 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
       {
         scale: true,
         axisLine: { lineStyle: { color: '#8392A5' } },
-        splitLine: { show: false },
+        splitLine: {
+          show: true,
+          lineStyle: {
+            color: '#8392A5',
+            opacity: 0.5,
+          },
+        },
+        position: 'right',
+        type: 'value',
       },
       {
         scale: true,
         axisLine: { lineStyle: { color: '#8392A5' } },
         splitLine: { show: false },
-      },
-      {
-        scale: true,
-        axisLine: { lineStyle: { color: '#8392A5' } },
-        splitLine: { show: false },
+        position: 'right',
+        type: 'value',
       },
     ],
     grid: {
@@ -112,13 +116,13 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
     ],
     animation: false,
   });
-  getData(echart, daHandler, Options);
+  getData(echart, Options);
 };
 
-async function getData(echart: echarts.ECharts, daHandler: DataSource, Options: ViewOptions) {
+async function getData(echart: echarts.ECharts, Options: ViewOptions) {
   if (close) close();
   echart.showLoading();
-  close = await daHandler.Api.GetCandles('BTC-USDT', Options, (dates) => {
+  close = await DataStore.state.DataSource.GetCandles('BTC-USD-SWAP', Options, (dates: any) => {
     echart.hideLoading();
     echart.setOption(getOption(dates, Options));
   });

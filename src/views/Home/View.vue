@@ -1,8 +1,5 @@
 <template>
   <div class="HomeView">
-    <el-select size="mini" v-model="ViewOptions.Source" placeholder="请选择" @change="ResetView">
-      <el-option v-for="item in DataSource" :key="item.Name" :label="item.Name" :value="item.Name"> </el-option>
-    </el-select>
     <el-button @click="more" size="mini">加载更多</el-button>
     <el-radio-group size="mini" v-model="ViewOptions.Granularity">
       <el-radio-button label="1m"></el-radio-button>
@@ -61,8 +58,7 @@ export default class HomeView extends Vue {
 
   ResetView() {
     const myChart = echarts.init(document.getElementById('HomeView') as HTMLDivElement);
-    const handler = Vue.DataStore.state.DataSource.filter((item) => item.Name === this.ViewOptions.Source)[0];
-    ViewDrawLine(myChart, handler, this.ViewOptions);
+    ViewDrawLine(myChart, this.ViewOptions);
   }
 }
 </script>

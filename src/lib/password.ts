@@ -6,7 +6,7 @@ import { CodeObj, Code } from '@/types/Api';
 export const PasswordEnc = (password: string) => {
   const arr = password.split('');
   password = CryptoJS.enc.Base64.parse(password);
-  console.log(CryptoJS.MD5(password));
+  // console.log(CryptoJS.MD5(password));
   let pwd = CryptoJS.MD5(password).toString();
   for (let i = 0; i < arr.length; i++) {
     pwd = CryptoJS.MD5([arr[i], pwd].join('')).toString();

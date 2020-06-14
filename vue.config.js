@@ -73,6 +73,8 @@ const conf = {
           proxyReq.removeHeader('x-forwarded-host');
           proxyReq.removeHeader('x-forwarded-proto');
           proxyReq.removeHeader('x-forwarded-for');
+          // okex 强制校验 ct-type。。。。。。
+          proxyReq.setHeader('content-type', 'application/json');
         },
       },
       '/binancezh': {

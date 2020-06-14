@@ -13,6 +13,14 @@ export const IdCreate = () => {
   );
 };
 
+// 保证内存内，该数值是唯一ID
+const timeIds: any = {};
+export const getTimeId = (time = Date.now()): number => {
+  if (timeIds[time]) return getTimeId(time + 1);
+  timeIds[time] = true;
+  return time;
+};
+
 export function clone<T>(data: T) {
   return JSON.parse(JSON.stringify(data)) as T;
 }

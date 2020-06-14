@@ -13,11 +13,12 @@
       <el-dialog :title="$UserStore.localState.Password ? (form.origin ? '修改秘钥' : '添加秘钥') : '请先设置站点密码'" :visible.sync="AddKeyDialog" @close="DialogClear" :close-on-click-modal="false">
         <!-- 用户已经设置过密码 -->
         <el-form :model="form" label-width="100px" v-if="$UserStore.localState.Password">
-          <el-form-item label="备注"><el-input placeholder="（选填）例如：FMex只读权限" v-model="form.Desc" autocomplete="off"></el-input></el-form-item>
-          <el-form-item label="交易所">
-            <el-select v-model="form.Type">
-              <el-option v-for="item in $DataStore.state.DataSource" :key="item.Name" :label="item.Name" :value="item.Name"></el-option>
-            </el-select>
+          <el-form-item label="备注">
+            <el-input placeholder="（选填）例如：只读权限" v-model="form.Desc" autocomplete="off"></el-input>
+            <div>若填写包含 <el-tag size="mini">test</el-tag> 字样，则认定为测试网API</div>
+          </el-form-item>
+          <el-form-item label="Passphrase">
+            <el-input placeholder="Passphrase" v-model="form.Pwd" autocomplete="off"></el-input>
           </el-form-item>
           <el-form-item label="Key"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Key" autocomplete="off"></el-input></el-form-item>
           <el-form-item label="Secret"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Secret" autocomplete="off"></el-input></el-form-item>
@@ -41,8 +42,9 @@
       <el-card class="box-card fl" v-for="data in $UserStore.localState.SecretKeys" :key="data.Key">
         <div slot="header" class="clearfix">
           <el-tag size="mini">{{ data.Key }}</el-tag>
-          <el-button style="float: right; padding: 3px;margin-left:4px;" @click="DeleteKey(data)" type="warning">删除</el-button>
-          <el-button style="float: right; padding: 3px;margin-left:4px;" @click="ModifyKey(data)" type="success">修改</el-button>
+          <el-button style="padding: 3px;margin-left:4px;" @click="DeleteKey(data)" type="warning">删除</el-button>
+          <el-button style="padding: 3px;margin-left:4px;" @click="ModifyKey(data)" type="success">修改</el-button>
+          <el-button style="padding: 3px;margin-left:4px;" @click="Test(data)" type="primary">测试</el-button>
         </div>
         <div>
           备注：<el-tag size="small" v-if="data.Desc">{{ data.Desc }}</el-tag>
@@ -67,7 +69,7 @@ export default class HomeKey extends Vue {
     Desc: '',
     Password: '',
     Password2: '',
-    Type: 'fmex',
+    Pwd: '',
     origin: null as null | SecretKey,
   };
   created() {
@@ -95,6 +97,7 @@ export default class HomeKey extends Vue {
     this.form.Secret = sec.Data;
     this.form.Key = data.Key;
     this.form.Desc = data.Desc;
+    this.form.Pwd = data.Pwd;
     this.AddKeyDialog = true;
     this.form.origin = data;
   }
@@ -120,7 +123,7 @@ export default class HomeKey extends Vue {
     }
     // 添加Key 流程
     const Desc = (this.form.Desc || '').trim();
-    const Type = this.form.Type;
+    const Pwd = (this.form.Pwd || '').trim();
     const Key = (this.form.Key || '').trim();
     const Secret = (this.form.Secret || '').trim();
     if (!Key) return this.$notify.warning('Key 不可为空');
@@ -137,12 +140,12 @@ export default class HomeKey extends Vue {
 
     // 修改流程
     if (this.form.origin) {
-      const res = this.$UserStore.AddKey({ Key, Secret, Desc, Type }, pwd.Data, this.form.origin);
+      const res = this.$UserStore.AddKey({ Key, Secret, Desc, Pwd }, pwd.Data, this.form.origin);
       if (res.Error()) return this.$notify.warning(res.Msg);
       this.$message.success('修完成功');
     } else {
       // 添加流程
-      const res = this.$UserStore.AddKey({ Key, Secret, Desc, Type }, pwd.Data);
+      const res = this.$UserStore.AddKey({ Key, Secret, Desc, Pwd }, pwd.Data);
       if (res.Error()) return this.$notify.warning(res.Msg);
       this.$message.success('添加成功');
     }
@@ -158,14 +161,20 @@ export default class HomeKey extends Vue {
     this.$UserStore.localState.SecretKeys = [];
     this.$message.success('重置完成');
   }
+
+  async Test(data: SecretKey) {
+    const pwd = await this.$UserStore.PromptPassword();
+    if (pwd.Error()) return;
+    const res = await this.$UserStore.Test(data, pwd.Data);
+    if (res.Error()) return this.$message.error(res.Msg);
+    this.$message.success('api 有效');
+  }
 }
 </script>
 
 <style scoped lang="scss">
 .HomeKey {
   .box-card {
-    width: 360px;
-    height: 114px;
     margin: 10px;
   }
 }
