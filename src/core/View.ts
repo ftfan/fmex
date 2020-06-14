@@ -63,17 +63,22 @@ export const ViewDrawLine = (echart: echarts.ECharts, daHandler: DataSource, Opt
       {
         scale: true,
         axisLine: { lineStyle: { color: '#8392A5' } },
-        splitLine: { show: false },
+        splitLine: {
+          show: true,
+          lineStyle: {
+            color: '#8392A5',
+            opacity: 0.5,
+          },
+        },
+        position: 'right',
+        type: 'value',
       },
       {
         scale: true,
         axisLine: { lineStyle: { color: '#8392A5' } },
         splitLine: { show: false },
-      },
-      {
-        scale: true,
-        axisLine: { lineStyle: { color: '#8392A5' } },
-        splitLine: { show: false },
+        position: 'right',
+        type: 'value',
       },
     ],
     grid: {
