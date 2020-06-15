@@ -1,18 +1,19 @@
 import Data from '@/lib/data';
 import Vue from 'vue';
-import { ViewOptions } from '@/core/View';
-import { DateFormat } from '@/lib/time';
+import { ViewOptions, Target } from '@/core/View';
 import { SiteName } from '@/config';
 import { FMex } from '@/api/FMex';
 
-const fmex = new FMex.Api('', '');
 const fmexws = FMex.Wss;
-const TimeOutSpeed = 1000;
+
+const k_sub: any[] = [];
 
 class Store extends Data {
   // 内存状态
   readonly state = {
     LoadMore: null as any,
+    ViewReload: null as any,
+    LastCandleTime: Date.now(),
     DataSource: {
       GetCandles: async (Options: ViewOptions, callback: any) => {
         const fulldata: { [index: string]: Candle[] } = {};
@@ -22,7 +23,7 @@ class Store extends Data {
           const allmap = (fullmap[Options.Resolution] = fullmap[Options.Resolution] || {});
           // const res = await fmex.GetCandles(Options.CoinSymbol.replace('_spot', '_p'), Options.Resolution, 100, before);
           // if (res.Error()) return [];
-          const res = await fmexws.req('candle', Options.Resolution, Options.CoinSymbol.replace('_spot', '_p'), 1441, before);
+          const res = await fmexws.req('candle', Options.Resolution, Options.CoinSymbol, 1441, before);
           res.data.reverse().forEach((item) => {
             const data: Candle = {
               timestamp: new Date(item.id * 1000).getTime(),
@@ -48,11 +49,19 @@ class Store extends Data {
           console.log('alldata', len, alldata.length);
           callback(alldata);
         };
+        Vue.DataStore.state.ViewReload = async () => {
+          const alldata = (fulldata[Options.Resolution] = fulldata[Options.Resolution] || []);
+          callback(alldata);
+        };
         await getData(Math.ceil(Date.now() / 1000));
         console.log(fulldata, fullmap);
 
-        const sub = fmexws.sub('candle', Options.Resolution, '', Options.CoinSymbol);
-        sub.ondata((data) => {
+        k_sub.forEach((s) => s && s.close());
+        const sub0 = fmexws.sub('candle', Options.Resolution, '', Options.CoinSymbol.replace('_p', '_spot'));
+        const sub1 = fmexws.sub('ticker', Options.CoinSymbol);
+        k_sub[0] = sub0;
+        k_sub[1] = sub1;
+        sub0.ondata((data) => {
           const alldata = (fulldata[Options.Resolution] = fulldata[Options.Resolution] || []);
           const allmap = (fullmap[Options.Resolution] = fullmap[Options.Resolution] || {});
           const item = {
@@ -64,6 +73,7 @@ class Store extends Data {
             volume: data.base_vol,
             currency_volume: data.quote_vol,
           };
+          this.state.LastCandleTime = data.seq * 1000;
           const time = item.timestamp;
           if (allmap[time]) {
             Object.assign(allmap[time], item);
@@ -73,6 +83,20 @@ class Store extends Data {
           allmap[time] = item;
           alldata.push(item);
           callback(alldata);
+        });
+        sub1.ondata((data) => {
+          const alldata = (fulldata[Options.Resolution] = fulldata[Options.Resolution] || []);
+          const allmap = (fullmap[Options.Resolution] = fullmap[Options.Resolution] || {});
+          if (data.ts < this.state.LastCandleTime) return; // 时间还比这个慢，走吧走吧不看了
+          this.state.LastCandleTime = data.ts;
+          const time = data.ts - (data.ts % 60000);
+          if (!allmap[time]) return; // 找不到数据源，不要了不要了
+          const item = allmap[time];
+          item.close = data.ticker[0];
+          if (item.low > item.close) item.low = item.close;
+          if (item.high < item.close) item.high = item.close;
+          callback(alldata);
+          return;
         });
       },
     },
@@ -84,11 +108,25 @@ class Store extends Data {
   // 持久状态
   readonly localState = {
     ViewOptions: {
-      CoinSymbol: 'btcusd_spot',
+      CoinSymbol: 'btcusd_p',
       Resolution: FMex.Resolution.M1,
-      Target: [],
+      Target: ['BOLL20'],
       CandleNum: 1440,
     } as ViewOptions,
+    Targets: [
+      {
+        value: 'MA-移动平均线',
+        children: [{ value: 'MA5' }, { value: 'MA15' }, { value: 'MA20' }],
+      },
+      {
+        value: 'BOLL-布林线',
+        children: [{ value: 'BOLL10' }, { value: 'BOLL20' }, { value: 'BOLL30' }],
+      },
+      {
+        value: 'OBV-能量潮',
+        children: [{ value: 'OBV' }, { value: 'OBV*多空比例净额' }],
+      },
+    ] as Target[],
   };
 
   protected name = `${SiteName}:Data`;

@@ -13,13 +13,13 @@
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 import echarts from 'echarts';
-import { ViewDrawLine, ViewOptions, Targets } from '@/core/View';
+import { ViewDrawLine, ViewOptions } from '@/core/View';
 import { FMex } from '@/api/FMex';
 
 @Component
 export default class HomeView extends Vue {
   cascadervalue = '';
-  Targets = Targets;
+  Targets = Vue.DataStore.localState.Targets;
   cascaderprops = { multiple: true, emitPath: false, label: 'value' };
   Resolutions = [
     FMex.Resolution.M1,
@@ -48,6 +48,11 @@ export default class HomeView extends Vue {
   @Watch('ViewOptions.Resolution')
   onChange() {
     this.ResetView();
+  }
+
+  @Watch('ViewOptions.Target')
+  onTargetChange() {
+    if (Vue.DataStore.state.ViewReload) Vue.DataStore.state.ViewReload();
   }
 
   ChooseTarget(target: any) {

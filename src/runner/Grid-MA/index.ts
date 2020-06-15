@@ -2,7 +2,6 @@ import Data from '@/lib/data';
 import { RunnerOrder } from '@/types/Runner';
 import { Candle } from '@/data/Data';
 import { sleep, clone, getTimeId } from '@/lib/utils';
-import { UserStore } from '@/data/User';
 import { client_oid_static } from '@/config';
 import { Notification } from 'element-ui';
 import { FMex } from '@/api/FMex';

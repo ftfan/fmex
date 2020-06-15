@@ -97,13 +97,20 @@ export namespace FMex {
       this.ws.onerror = this.onerror.bind(this);
       // 触发心跳事件（后续每隔 HeartTime 跳动一次）
       setInterval(() => this.Heartbeat(), this.HeartTime);
+      this.event.$on('error', (err: any) => {
+        console.error('error', err);
+      });
+      this.event.$on('close', (err: any) => {
+        console.error('close', err);
+      });
     }
 
     private onmessage(ev: MessageEvent) {
       try {
         const data = JSON.parse(ev.data.toString()) as WsResponse;
-        // this.event.$emit(data.type, data);
+        if (data.type && typeof data.type === 'string') this.event.$emit(data.type, data);
         if (data.id && typeof data.id === 'string') this.event.$emit(data.id, data);
+        if ((data as any).status) console.error(data); // 怀疑出错了
       } catch (e) {
         console.error(`err msg`, e);
         this.event.$emit('error', e);
@@ -194,7 +201,9 @@ export namespace FMex {
         ondata,
         onsuccess,
         close: () => {
-          this.event.$off(id, watchSuccess) && this.event.$off(type, watch);
+          this.event.$off(id, watchSuccess);
+          this.event.$off(type, watch);
+          this.ws.send(JSON.stringify({ cmd: 'unsub', args: [type] }));
         },
       };
     }
@@ -278,6 +287,7 @@ export namespace FMex {
     type: string;
     seq: number;
     ticker: TickerRes;
+    ts: number;
   }
   export interface WsDepthRes {
     type: string;

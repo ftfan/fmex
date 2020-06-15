@@ -107,7 +107,7 @@ export default class BollView extends Vue {
   get ViewOptions(): ViewOptions {
     const key = this.$UserStore.localState.SecretKeys.filter((item) => item.Key === BOLL.localState.Key)[0];
     return {
-      CoinSymbol: 'btcusd_spot',
+      CoinSymbol: 'btcusd_p',
       Resolution: BOLL.localState.Resolution,
       Target: ['BOLL20'],
       CandleNum: 200,

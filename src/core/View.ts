@@ -3,6 +3,7 @@ import { Candle, DataStore } from '@/data/Data';
 import { TargetResults } from '@/lib/target';
 import { DateFormat } from '@/lib/time';
 import { FMex } from '@/api/FMex';
+import Vue from 'vue';
 
 export interface ViewOptions {
   Resolution: FMex.Resolution;
@@ -16,26 +17,22 @@ export interface Target {
   value: string;
   children?: Target[];
 }
-export const Targets: Target[] = [
-  {
-    value: 'MA-移动平均线',
-    children: [{ value: 'MA5' }, { value: 'MA15' }, { value: 'MA20' }],
-  },
-  {
-    value: 'BOLL-布林线',
-    children: [{ value: 'BOLL10' }, { value: 'BOLL20' }, { value: 'BOLL30' }],
-  },
-  {
-    value: 'OBV-能量潮',
-    children: [{ value: 'OBV' }, { value: 'OBV*多空比例净额' }],
-  },
-];
 
 let close: any = null;
 
 export const ViewDrawLine = (echart: echarts.ECharts, Options: ViewOptions) => {
+  const upColor = '#0cf49b';
+  const downColor = '#fd1050';
   echart.clear();
   echart.setOption({
+    title: {
+      text: '',
+      top: 'top',
+      left: 'left',
+      textStyle: {
+        color: '#f09',
+      },
+    },
     backgroundColor: '#21202D',
     legend: {
       // data: ['MA5', 'MA15', 'MA30', 'MA60'],
@@ -44,6 +41,20 @@ export const ViewDrawLine = (echart: echarts.ECharts, Options: ViewOptions) => {
         color: '#fff',
       },
     },
+
+    grid: [
+      {
+        left: '10%',
+        right: '8%',
+        height: '50%',
+      },
+      {
+        left: '10%',
+        right: '8%',
+        top: '63%',
+        height: '16%',
+      },
+    ],
     tooltip: {
       trigger: 'axis',
       axisPointer: {
@@ -55,12 +66,85 @@ export const ViewDrawLine = (echart: echarts.ECharts, Options: ViewOptions) => {
           opacity: 1,
         },
       },
+      backgroundColor: 'rgba(245, 245, 245, 0.8)',
+      borderWidth: 1,
+      borderColor: '#ccc',
+      padding: 10,
+      textStyle: {
+        color: '#000',
+      },
+      // position: function(pos: any, params, el, elRect, size: any) {
+      //   const obj: any = { top: 10 };
+      //   obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 30;
+      //   return obj;
+      // },
     },
-    xAxis: {
-      type: 'category',
-      axisLine: { lineStyle: { color: '#8392A5' } },
+    axisPointer: {
+      link: { xAxisIndex: 'all' } as any,
+      label: {
+        backgroundColor: '#777',
+      },
     },
+    visualMap: {
+      show: false,
+      seriesIndex: 1,
+      dimension: 2,
+      pieces: [
+        {
+          value: -1,
+          color: downColor,
+        },
+        {
+          value: 1,
+          color: upColor,
+        },
+      ],
+    } as any,
+    toolbox: {
+      feature: {
+        // dataZoom: {
+        //   yAxisIndex: false,
+        // },
+        // brush: {
+        //   type: ['lineX', 'clear'],
+        // },
+      },
+    },
+    xAxis: [
+      {
+        type: 'category',
+        scale: true,
+        boundaryGap: false,
+        axisLine: { lineStyle: { color: '#8392A5' }, onZero: false },
+        splitLine: { show: false },
+        splitNumber: 10,
+        min: 'dataMin',
+        max: 'dataMax',
+        axisPointer: {
+          z: 100,
+        },
+      },
+      {
+        type: 'category',
+        gridIndex: 1,
+        scale: true,
+        boundaryGap: false,
+        axisLine: { onZero: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        splitNumber: 10,
+        min: 'dataMin',
+        max: 'dataMax',
+      },
+    ],
     yAxis: [
+      // {
+      //   scale: true,
+      //   splitArea: {
+      //     show: true,
+      //   },
+      // },
       {
         scale: true,
         axisLine: { lineStyle: { color: '#8392A5' } },
@@ -68,52 +152,52 @@ export const ViewDrawLine = (echart: echarts.ECharts, Options: ViewOptions) => {
           show: true,
           lineStyle: {
             color: '#8392A5',
-            opacity: 0.5,
+            opacity: 0.2,
           },
         },
         position: 'right',
         type: 'value',
+        // splitArea: {
+        //   show: true,
+        // },
       },
       {
         scale: true,
-        axisLine: { lineStyle: { color: '#8392A5' } },
+        gridIndex: 1,
+        splitNumber: 2,
+        axisLabel: { show: false },
+        axisLine: { show: false },
+        axisTick: { show: false },
         splitLine: { show: false },
-        position: 'right',
-        type: 'value',
       },
+      // {
+      //   scale: true,
+      //   axisLine: { lineStyle: { color: '#8392A5' } },
+      //   splitLine: { show: false },
+      //   position: 'right',
+      //   type: 'value',
+      // },
     ],
-    grid: {
-      bottom: 80,
-    },
     dataZoom: [
       {
-        // xAxisIndex: 0,
-        // yAxisIndex: 0,
-        // filterMode: 'filter',
-        start: 80,
-        textStyle: {
-          color: '#8392A5',
-        },
-        handleSize: '80%',
-        dataBackground: {
-          areaStyle: {
-            color: '#8392A5',
-          },
-          lineStyle: {
-            opacity: 0.8,
-            color: '#8392A5',
-          },
-        },
-        handleStyle: {
-          color: '#fff',
-          shadowBlur: 3,
-          shadowColor: 'rgba(0, 0, 0, 0.6)',
-          shadowOffsetX: 2,
-          shadowOffsetY: 2,
-        },
+        type: 'inside',
+        xAxisIndex: [0, 1],
+        start: 88,
+        end: 100,
       },
       {
-        type: 'inside',
+        show: true,
+        xAxisIndex: [0, 1],
+        type: 'slider',
+        top: '85%',
+        start: 88,
+        end: 100,
+        textStyle: { color: '#fff' },
+        dataBackground: {
+          areaStyle: { color: '#ccc' },
+          lineStyle: { color: '#fff' },
+        },
+        // axisLine: { lineStyle: { color: '#8392A5' } },
       },
     ],
     animation: false,
@@ -124,28 +208,47 @@ export const ViewDrawLine = (echart: echarts.ECharts, Options: ViewOptions) => {
 async function getData(echart: echarts.ECharts, Options: ViewOptions) {
   if (close) close();
   echart.showLoading();
+  let first = true;
   close = await DataStore.state.DataSource.GetCandles(Options, (dates: any) => {
-    echart.hideLoading();
+    if (first) {
+      first = false;
+      echart.hideLoading();
+    }
+
     echart.setOption(getOption(dates, Options));
   });
 }
 
 function getOption(rawData: Candle[], Options: ViewOptions) {
-  const dates = rawData.map((item) => DateFormat(item.timestamp, 'yyyy-MM-dd hh:mm'));
-
-  const data = rawData.map(function(item) {
-    return [item.open, item.close, item.high, item.low];
+  const dates: string[] = [];
+  const kData = {
+    k: [] as number[][],
+    v: [] as number[][],
+  };
+  rawData.forEach((item, index) => {
+    dates.push(DateFormat(item.timestamp, 'yyyy-MM-dd hh:mm'));
+    kData.k.push([item.open, item.close, item.high, item.low]);
+    kData.v.push([index, item.volume, item.close > item.open ? 1 : -1]);
   });
+  // console.log(rawData);
 
   const opt: any = {
-    xAxis: {
-      data: dates,
+    title: {
+      text: DateFormat(Vue.DataStore.state.LastCandleTime, 'yyyy-MM-dd hh:mm:ss'),
     },
+    xAxis: [
+      {
+        data: dates,
+      },
+      {
+        data: dates,
+      },
+    ],
     series: [
       {
         type: 'k',
         name: Options.Resolution,
-        data: data,
+        data: kData.k,
         itemStyle: {
           color: '#0CF49B',
           color0: '#FD1050',
@@ -197,6 +300,13 @@ function getOption(rawData: Candle[], Options: ViewOptions) {
             // },
           ],
         },
+      },
+      {
+        name: 'Volume',
+        type: 'bar',
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: kData.v,
       },
     ],
   };
