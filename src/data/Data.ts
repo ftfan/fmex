@@ -3,8 +3,7 @@ import Vue from 'vue';
 import { ViewOptions, Target } from '@/core/View';
 import { SiteName } from '@/config';
 import { FMex } from '@/api/FMex';
-
-const fmexws = FMex.Wss;
+import { KLineData } from '@/types/types';
 
 const k_sub: any[] = [];
 
@@ -23,7 +22,7 @@ class Store extends Data {
           const allmap = (fullmap[Options.Resolution] = fullmap[Options.Resolution] || {});
           // const res = await fmex.GetCandles(Options.CoinSymbol.replace('_spot', '_p'), Options.Resolution, 100, before);
           // if (res.Error()) return [];
-          const res = await fmexws.req('candle', Options.Resolution, Options.CoinSymbol, 1441, before);
+          const res = await FMex.Wss.req('candle', Options.Resolution, Options.CoinSymbol, 1441, before);
           res.data.reverse().forEach((item) => {
             const data: Candle = {
               timestamp: new Date(item.id * 1000).getTime(),
@@ -57,14 +56,14 @@ class Store extends Data {
         console.log(fulldata, fullmap);
 
         k_sub.forEach((s) => s && s.close());
-        const sub0 = fmexws.sub('candle', Options.Resolution, '', Options.CoinSymbol.replace('_p', '_spot'));
-        const sub1 = fmexws.sub('ticker', Options.CoinSymbol);
+        const sub0 = FMex.Wss.sub('candle', Options.Resolution, '', Options.CoinSymbol.replace('_p', '_spot'));
+        const sub1 = FMex.Wss.sub('ticker', Options.CoinSymbol);
         k_sub[0] = sub0;
         k_sub[1] = sub1;
         sub0.ondata((data) => {
           const alldata = (fulldata[Options.Resolution] = fulldata[Options.Resolution] || []);
           const allmap = (fullmap[Options.Resolution] = fullmap[Options.Resolution] || {});
-          const item = {
+          const item: KLineData = {
             timestamp: new Date(data.id * 1000).getTime(),
             open: data.open,
             close: data.close,

@@ -16,7 +16,7 @@ export namespace FMex {
       _axios.interceptors.request.use(
         (config) => {
           ApiSign(config, {
-            DomainReal: 'https://api.fmex.com',
+            DomainReal: 'https://api.fmextest.net',
             AccessKey,
             AccessSecret,
           });
@@ -76,11 +76,12 @@ export namespace FMex {
    * FMex 的长连接
    */
   class Ws {
-    private ws: WebSocket; // 句柄存储
+    private ws!: WebSocket; // 句柄存储
     private HeartTimer = 0 as any;
     private HeartTime = 15000; // 每隔15秒心跳
-    private wsOpen: Promise<any>; // 使用ws的时候需要等待
+    private wsOpen!: Promise<any>; // 使用ws的时候需要等待
     private event = new Vue(); // 使用 Vue ，作为事件管理者
+    private subList: string[] = [];
     // 最后一次呼吸返回
     LastHeartbeat = {
       id: '',
@@ -90,19 +91,26 @@ export namespace FMex {
     };
     // constructor(baseUrl = 'wss://api.fmex.d73e969.com/v2/ws') {
     constructor(baseUrl = 'wss://www.fmextest.net/api/web/ws') {
+      // 触发心跳事件（后续每隔 HeartTime 跳动一次）
+      setInterval(() => this.Heartbeat(), this.HeartTime);
+      this.wssConn(baseUrl);
+      this.event.$on('error', (err: any) => {
+        console.error('error', err);
+      });
+      this.event.$on('close', async (err: any) => {
+        console.error('close', err);
+        this.wssConn(baseUrl);
+        await this.wsOpen;
+        this.subList.forEach((type) => this.send({ cmd: 'sub', args: [type] }));
+      });
+    }
+
+    private wssConn(baseUrl: string) {
       this.ws = new WebSocket(baseUrl);
       this.wsOpen = new Promise((resolve) => (this.ws.onopen = resolve));
       this.ws.onmessage = this.onmessage.bind(this);
       this.ws.onclose = this.onclose.bind(this);
       this.ws.onerror = this.onerror.bind(this);
-      // 触发心跳事件（后续每隔 HeartTime 跳动一次）
-      setInterval(() => this.Heartbeat(), this.HeartTime);
-      this.event.$on('error', (err: any) => {
-        console.error('error', err);
-      });
-      this.event.$on('close', (err: any) => {
-        console.error('close', err);
-      });
     }
 
     private onmessage(ev: MessageEvent) {
@@ -123,6 +131,14 @@ export namespace FMex {
 
     private onclose(ev: CloseEvent) {
       this.event.$emit('close', ev);
+    }
+
+    private send(data: any) {
+      try {
+        this.ws.send(JSON.stringify(data));
+      } catch (e) {
+        console.error('send error', e);
+      }
     }
 
     async ping(
@@ -146,7 +162,7 @@ export namespace FMex {
           clearTimeout(timer);
           resolve(data);
         });
-        this.ws.send(JSON.stringify({ cmd: 'ping', args: [num], id }));
+        this.send({ cmd: 'ping', args: [num], id });
       });
     }
 
@@ -167,7 +183,7 @@ export namespace FMex {
       }
       return new Promise((resolve) => {
         this.event.$once(id, resolve);
-        this.wsOpen.then(() => this.ws.send(JSON.stringify({ cmd: 'req', args: relArgs, id })));
+        this.wsOpen.then(() => this.send({ cmd: 'req', args: relArgs, id }));
       });
     }
     /**
@@ -179,7 +195,7 @@ export namespace FMex {
     ): {
       ondata: (fun: (data: WsSubMap[K][1]) => any) => any;
       close: () => any;
-      onsuccess: (fun: () => any) => any;
+      onsuccess: (fun: (data: WsSubMap[K][1]) => any) => any;
     };
     sub(topic: WsSubMap, ...args: (number | string)[]) {
       const id = IdCreate();
@@ -196,14 +212,19 @@ export namespace FMex {
       };
       this.event.$on(id, watchSuccess);
       this.event.$on(type.toLocaleLowerCase(), watch);
-      this.wsOpen.then(() => this.ws.send(JSON.stringify({ cmd: 'sub', args: [type], id })));
+      if (type.match('-delta')) this.event.$once(type.replace('-delta', '').toLocaleLowerCase(), watch);
+      this.subList.push(type);
+      this.wsOpen.then(() => this.send({ cmd: 'sub', args: [type], id }));
       return {
         ondata,
         onsuccess,
         close: () => {
           this.event.$off(id, watchSuccess);
-          this.event.$off(type, watch);
-          this.ws.send(JSON.stringify({ cmd: 'unsub', args: [type] }));
+          if (type.match('-delta')) this.event.$off(type.replace('-delta', '').toLocaleLowerCase(), watch);
+          this.event.$off(type.toLocaleLowerCase(), watch);
+          this.send({ cmd: 'unsub', args: [type] });
+          const index = this.subList.indexOf(type);
+          if (index > -1) this.subList.splice(index, 1);
         },
       };
     }
@@ -442,6 +463,7 @@ export namespace FMex {
   export interface DepthUnit {
     price: number;
     vol: number;
+    isAsk?: boolean;
   }
 
   export enum OrderState {

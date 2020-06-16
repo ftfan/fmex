@@ -248,3 +248,13 @@ export interface LeveragedBalance {
     overrun: boolean;
   };
 }
+
+export interface KLineData {
+  timestamp: number;
+  open: number;
+  close: number;
+  low: number;
+  high: number;
+  volume: number;
+  currency_volume: number;
+}

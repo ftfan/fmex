@@ -278,7 +278,7 @@ function getOption(rawData: Candle[], Options: ViewOptions) {
           data: [],
         },
         markLine: {
-          silent: true, // 不响应鼠标
+          // silent: true, // 不响应鼠标
           symbol: ['none', 'none'],
           symbolSize: [10, 10],
           data: [

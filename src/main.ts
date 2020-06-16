@@ -11,6 +11,7 @@ import '@/plugins/element';
 // 状态管理
 import '@/data/User';
 import '@/data/Data';
+import '@/data/App';
 
 // Register the router hooks with their names
 Component.registerHooks([

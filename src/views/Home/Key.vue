@@ -5,8 +5,8 @@
       <el-button type="danger" @click="ResetAll">重置站点</el-button>
       <el-tooltip class="item" effect="dark" content="非必要情况，希望不要修改该数据 ^_^ 感谢支持" placement="top">
         <div style="display:inline-block;">
-          <el-link style="margin-left:8px;">BrokerID:</el-link>
-          <el-autocomplete size="mini" v-model="$UserStore.localState.BrokerID" :fetch-suggestions="querySearch" placeholder="请输入BrokerID"></el-autocomplete>
+          <el-link style="margin-left:8px;">affiliate_code: </el-link>
+          <el-autocomplete size="mini" v-model="$UserStore.localState.BrokerID" :fetch-suggestions="querySearch" placeholder="请输入 affiliate_code"></el-autocomplete>
         </div>
       </el-tooltip>
 
@@ -15,7 +15,7 @@
         <el-form :model="form" label-width="100px" v-if="$UserStore.localState.Password">
           <el-form-item label="备注"><el-input placeholder="（选填）例如：FMex只读权限" v-model="form.Desc" autocomplete="off"></el-input></el-form-item>
           <el-form-item label="Passphrase">
-            <el-input placeholder="Passphrase" v-model="form.Pwd" autocomplete="off"></el-input>
+            <el-input placeholder="Passphrase（随便）" v-model="form.Pwd" autocomplete="off"></el-input>
           </el-form-item>
           <el-form-item label="Key"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Key" autocomplete="off"></el-input></el-form-item>
           <el-form-item label="Secret"><el-input placeholder="（必填）例如：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" v-model="form.Secret" autocomplete="off"></el-input></el-form-item>

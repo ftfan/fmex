@@ -7,13 +7,10 @@
     <el-divider></el-divider>
     <el-tag>参考K线单位：</el-tag>
     <el-radio-group size="mini" v-model="BOLL.localState.Resolution">
-      <el-radio-button label="1m"></el-radio-button>
-      <el-radio-button label="3m"></el-radio-button>
-      <el-radio-button label="5m"></el-radio-button>
-      <el-radio-button label="15m"></el-radio-button>
-      <el-radio-button label="30m"></el-radio-button>
-      <el-radio-button label="1h"></el-radio-button>
+      <el-radio-button v-for="item in Resolutions" :key="item" :label="item"></el-radio-button>
     </el-radio-group>
+    <!-- <el-cascader size="mini" :options="Targets" :props="cascaderprops" :show-all-levels="false" v-model="ViewOptions.Target" :collapse-tags="true"></el-cascader> -->
+
     <el-divider></el-divider>
     <!-- <el-input style="width:250px;margin-right:10px;" size="mini" v-model.number="BOLL.localState.DiffCancel">
       <template slot="prepend">最多滞留：</template>
@@ -78,6 +75,7 @@ import { DateFormat } from '@/lib/time';
 import { sleep } from '@/lib/utils';
 import { SecretKey } from '../../types/Secret';
 import { Loading } from 'element-ui';
+import { FMex } from '../../api/FMex';
 
 const OrderColorConf = {
   [BollType.upper]: 'red',
@@ -104,6 +102,7 @@ export default class BollView extends Vue {
   get BOLL() {
     return BOLL;
   }
+  Resolutions = [FMex.Resolution.M1, FMex.Resolution.M3, FMex.Resolution.M5, FMex.Resolution.M15, FMex.Resolution.M30, FMex.Resolution.H1];
   get ViewOptions(): ViewOptions {
     const key = this.$UserStore.localState.SecretKeys.filter((item) => item.Key === BOLL.localState.Key)[0];
     return {
