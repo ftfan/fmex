@@ -39,7 +39,7 @@ class Store extends Data {
     },
   };
 
-  protected name = `imconfig:daytrade`;
+  protected name = `imconfig:Lcn`;
   protected desc = `日内交易，一样是亏钱，我们要亏得有规律，有尊严！`;
 
   constructor() {
@@ -63,20 +63,38 @@ class Store extends Data {
   }
 
   // 计算枢轴线指标
-  CalcPivot(kline: KLineData) {
-    const high = kline.high; // 前一日的最高价
-    const low = kline.low; // 前一日的最低价
-    const close = kline.close; // 前一日的收盘价
-    const pivot = (high + low + close) / 3; // 枢轴点
+  CalcPivot(kline: KLineData[]) {
+    // 时间越远的权重越低。
+    // 最高价和最低价权重翻倍
+    const high = Math.max(...kline.map((k) => k.high));
+    const highclose = Math.max(...kline.map((k) => k.close));
+    const low = Math.min(...kline.map((k) => k.low));
+    const lowclose = Math.min(...kline.map((k) => k.close));
+
+    const hc = (highclose + high) / 2;
+    const lc = (lowclose + low) / 2;
+    // const close = kline[kline.length - 1].close;
+    let pivot = 0;
+    let sum = 0;
+    const limit = kline.length / 4;
+    kline.forEach((k, index) => {
+      const pow = Math.min(Math.max(limit, index), limit * 3);
+      sum += pow * 3;
+      pivot += (k.close + k.high + k.low) * pow;
+    });
+    pivot += (high + low + highclose + lowclose) * limit;
+    sum += 4 * limit;
+    pivot = pivot / sum;
+    // const pivot = (high + low + close) / 3; // 枢轴点
     const Risk = 2;
     return {
-      BreakBuy: PriceNum(high + Risk * (pivot - low)), // 突破买入价
-      SetupSell: PriceNum(pivot + (high - low)), // 观察卖出价
-      RevSell: PriceNum(Risk * pivot - low), // 反转卖出价
+      BreakBuy: PriceNum(hc + Risk * (pivot - lc)), // 突破买入价
+      SetupSell: PriceNum(pivot + (hc - lc)), // 观察卖出价
+      RevSell: PriceNum(Risk * pivot - lc), // 反转卖出价
       Pivot: PriceNum(pivot),
-      RevBuy: PriceNum(Risk * pivot - high), // 反转买入价
-      SetupBuy: PriceNum(pivot - (high - low)), // 观察买入价
-      BreakSell: PriceNum(low + Risk * (pivot - high)), // 突破卖出价
+      RevBuy: PriceNum(Risk * pivot - hc), // 反转买入价
+      SetupBuy: PriceNum(pivot - (hc - lc)), // 观察买入价
+      BreakSell: PriceNum(lc + Risk * (pivot - hc)), // 突破卖出价
     };
   }
 }

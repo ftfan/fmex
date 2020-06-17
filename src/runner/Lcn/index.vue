@@ -77,29 +77,21 @@ export default class BollView extends Vue {
   }
   async DataHook(rawData: Candle[], Options: ViewOptions, opt: any) {
     const RBreaker = Store.localState.RBreaker;
-    if (rawData.length < RBreaker.LastCandelTimeRange * 2) return; // 数据量不够。
+    const LastCandelTimeRange = RBreaker.LastCandelTimeRange || 4;
+    if (rawData.length < LastCandelTimeRange * 2) return; // 数据量不够。
     // 每个周期计算
-    const num = Math.floor(rawData.length / RBreaker.LastCandelTimeRange);
-    const lose = rawData.length % RBreaker.LastCandelTimeRange;
+    const num = Math.floor(rawData.length / LastCandelTimeRange);
+    const lose = rawData.length % LastCandelTimeRange;
     const dates: Candle[][] = [];
     for (let i = 1; i <= num; i++) {
-      dates.push(rawData.slice((i - 1) * RBreaker.LastCandelTimeRange + lose, i * RBreaker.LastCandelTimeRange + lose));
+      dates.push(rawData.slice((i - 1) * LastCandelTimeRange + lose, i * LastCandelTimeRange + lose));
     }
 
     for (let i = 1; i < dates.length; i++) {
       const CurrentKlines = dates[i];
       const LastKlines = dates[i - 1];
       // 获取上移周期数据，并计算出 开 收 高 低。
-      const BigKline: KLineData = {
-        low: Math.min(...LastKlines.map((k) => k.low)),
-        high: Math.max(...LastKlines.map((k) => k.high)),
-        open: LastKlines[0].open,
-        close: LastKlines[LastKlines.length - 1].close,
-        volume: 0,
-        currency_volume: 0,
-        timestamp: 0,
-      };
-      const rb = Store.CalcPivot(BigKline);
+      const rb = Store.CalcPivot(LastKlines);
       // 划线
       const xb = DateFormat(CurrentKlines[0].timestamp, 'yyyy-MM-dd hh:mm');
       const xe = DateFormat(CurrentKlines[CurrentKlines.length - 1].timestamp, 'yyyy-MM-dd hh:mm');
