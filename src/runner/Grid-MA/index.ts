@@ -301,14 +301,12 @@ class Store extends Data {
       await this.UpdateOrderInfo(order);
     }
 
-    return new Promise(async (resolve) => {
-      // 完结状态
-      while (OrderStatusEnd.indexOf(order.state) === -1 && this.state.api) {
-        await this.UpdateOrderInfo(order);
-        await sleep(1000);
-      }
-      return resolve(order);
-    });
+    // 完结状态
+    while (OrderStatusEnd.indexOf(order.state) === -1 && this.state.api) {
+      await this.UpdateOrderInfo(order);
+      await sleep(1000);
+    }
+    return order;
   }
 
   OrderAtPrice(params: any) {

@@ -15,7 +15,6 @@ module.exports = {
     '@typescript-eslint/camelcase': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
     '@typescript-eslint/no-use-before-define': 'off',
-    'no-async-promise-executor': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
   },
   overrides: [
